@@ -1,0 +1,28 @@
+{
+  "name": "my-first-flue-agent",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "flue dev --target cloudflare",
+    "build": "flue build --target cloudflare",
+    "run:hello": "flue run --target cloudflare hello-world --input '{\"message\":\"hello\"}'",
+    "deploy:dry": "wrangler deploy --dry-run --config dist/my_first_flue_agent/wrangler.json",
+    "deploy": "wrangler deploy --config dist/my_first_flue_agent/wrangler.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@flue/runtime": "1.0.0-beta.6",
+    "agents": "^0.14.5",
+    "valibot": "^1.4.1"
+  },
+  "devDependencies": {
+    "@flue/cli": "1.0.0-beta.6",
+    "typescript": "^6.0.3",
+    "wrangler": "^4.105.0"
+  }
+}
