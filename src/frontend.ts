@@ -8,25 +8,25 @@ export const STREAMING_LAB_HTML = String.raw`<!doctype html>
     :root {
       color-scheme: light dark;
       /* Kumo/Cloudflare 7 inspired semantic tokens. Static UI avoids the React Kumo build chain. */
-      --kumo-base: light-dark(#f7f7f5, #080808);
+      --kumo-base: light-dark(#f8f8f6, #0b0b0b);
       --kumo-elevated: light-dark(#ffffff, #111111);
-      --kumo-recessed: light-dark(#f1f1ef, #181818);
+      --kumo-recessed: light-dark(#f5f5f3, #171717);
       --kumo-line: light-dark(#d8d8d3, #303030);
       --kumo-hairline: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.10));
       --kumo-default: light-dark(#171717, #f5f5f4);
       --kumo-subtle: light-dark(#5f625d, #a7aaa4);
       --kumo-muted: light-dark(#787b74, #8e928b);
-      --kumo-brand: #f6821f;
-      --kumo-brand-strong: #faae40;
+      --kumo-brand: #f48120;
+      --kumo-brand-strong: #d96504;
       --kumo-accent: #0051c3;
       --kumo-accent-soft: light-dark(#e8f1ff, #0b2247);
       --kumo-success: #15803d;
-      --kumo-danger: #dc2626;
+      --kumo-danger: #c81e1e;
       --kumo-warning: #b45309;
       --kumo-radius-sm: 8px;
       --kumo-radius-md: 12px;
       --kumo-radius-lg: 18px;
-      --kumo-shadow: 0 1px 2px rgba(0,0,0,.08), 0 18px 48px rgba(0,0,0,.10);
+      --kumo-shadow: 0 1px 2px rgba(0,0,0,.06), 0 12px 28px rgba(0,0,0,.06);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     * { box-sizing: border-box; }
@@ -50,7 +50,7 @@ export const STREAMING_LAB_HTML = String.raw`<!doctype html>
     .brand-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
     .brand-lockup { display: flex; align-items: center; gap: 14px; }
     .cf-mark {
-      width: 42px; height: 42px; border-radius: 13px;
+      width: 44px; height: 44px; border-radius: 12px;
       display: grid; place-items: center;
       color: #111; font-weight: 950; letter-spacing: -0.08em;
       background: linear-gradient(135deg, var(--kumo-brand-strong), var(--kumo-brand));
@@ -60,55 +60,60 @@ export const STREAMING_LAB_HTML = String.raw`<!doctype html>
     header p { margin: 0; color: var(--kumo-subtle); line-height: 1.45; }
     main { display: grid; grid-template-columns: minmax(340px, 460px) 1fr; gap: 18px; padding: 18px; max-width: 1520px; margin: 0 auto; }
     section {
-      background: color-mix(in srgb, var(--kumo-elevated) 94%, transparent);
+      background: var(--kumo-elevated);
       border: 1px solid var(--kumo-hairline);
       border-radius: var(--kumo-radius-lg);
-      padding: 16px;
+      padding: 20px;
       box-shadow: var(--kumo-shadow);
     }
     .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-    label { display: block; font-size: 12px; font-weight: 750; color: var(--kumo-subtle); text-transform: uppercase; letter-spacing: .055em; margin: 13px 0 6px; }
+    label { display: block; font-size: 13px; font-weight: 650; color: var(--kumo-subtle); letter-spacing: 0; margin: 16px 0 6px; }
     input, select, textarea, button {
       width: 100%; border: 1px solid var(--kumo-line); border-radius: var(--kumo-radius-md);
-      background: var(--kumo-recessed); color: var(--kumo-default); padding: 10px 12px; font: inherit;
+      background: light-dark(#ffffff, var(--kumo-recessed)); color: var(--kumo-default); padding: 10px 12px; font: inherit;
       outline: none; transition: border-color .15s ease, box-shadow .15s ease, background .15s ease, transform .08s ease;
     }
     input:focus, select:focus, textarea:focus { border-color: var(--kumo-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--kumo-accent) 20%, transparent); }
     textarea { min-height: 128px; resize: vertical; line-height: 1.45; }
     button {
-      cursor: pointer; font-weight: 780; background: var(--kumo-brand); color: #111; border-color: transparent;
+      cursor: pointer; font-weight: 700; background: var(--kumo-brand); color: white; border-color: transparent;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 8px 18px color-mix(in srgb, var(--kumo-brand) 20%, transparent);
     }
     button:hover:not(:disabled) { transform: translateY(-1px); background: var(--kumo-brand-strong); }
     button.secondary { background: var(--kumo-elevated); color: var(--kumo-default); border: 1px solid var(--kumo-line); box-shadow: none; }
     button.secondary:hover:not(:disabled) { background: var(--kumo-accent-soft); }
-    button.danger { background: color-mix(in srgb, var(--kumo-danger) 85%, #111); color: white; }
+    button.danger { background: transparent; color: var(--kumo-danger); border: 1px solid color-mix(in srgb, var(--kumo-danger) 48%, var(--kumo-line)); box-shadow: none; }
+    button.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--kumo-danger) 10%, transparent); }
     button:disabled { opacity: .55; cursor: not-allowed; transform: none; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+    .actions { display: grid; grid-template-columns: 1.2fr 1fr .8fr; gap: 12px; margin-top: 16px; }
     .hint { color: var(--kumo-subtle); font-size: 12px; margin-top: 8px; line-height: 1.55; }
     .badge {
       display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px;
       border: 1px solid var(--kumo-hairline); border-radius: 999px; color: var(--kumo-subtle);
       background: var(--kumo-recessed); font-size: 12px; line-height: 1.2;
     }
-    .badge.brand { color: #111; border-color: transparent; background: var(--kumo-brand); font-weight: 800; }
+    .badge.brand { color: white; border-color: transparent; background: var(--kumo-brand); font-weight: 750; }
     .status-ok { color: var(--kumo-success); }
     .status-bad { color: var(--kumo-danger); }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
     pre {
-      white-space: pre-wrap; word-break: break-word; background: var(--kumo-recessed); color: var(--kumo-default);
-      border: 1px solid var(--kumo-hairline); border-radius: var(--kumo-radius-md); padding: 12px; margin: 0;
+      white-space: pre-wrap; word-break: break-word; background: light-dark(#ffffff, var(--kumo-recessed)); color: var(--kumo-default);
+      border: 1px dashed var(--kumo-line); border-radius: var(--kumo-radius-md); padding: 12px; margin: 0;
       max-height: 520px; overflow: auto; font-size: 12px; line-height: 1.45;
     }
     code { color: var(--kumo-default); background: var(--kumo-recessed); border: 1px solid var(--kumo-hairline); border-radius: 6px; padding: 1px 4px; }
     #assistantText { min-height: 220px; font-size: 14px; }
-    #events { min-height: 500px; background: color-mix(in srgb, var(--kumo-recessed) 92%, black); }
+    #events { min-height: 500px; background: light-dark(#ffffff, #111111); }
+    pre:empty::before { content: attr(data-empty); color: var(--kumo-muted); }
     .event { border-bottom: 1px solid var(--kumo-hairline); padding: 8px 0; }
     .event strong { color: var(--kumo-accent); }
     .event small { color: var(--kumo-muted); }
     .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
     .toolbar button { width: auto; padding: 7px 10px; font-size: 12px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--kumo-muted); display: inline-block; }
+    .status-ok .status-dot { background: var(--kumo-success); }
+    .metric { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     @media (max-width: 980px) { main, .grid { grid-template-columns: 1fr; } header { position: static; } }
   </style>
 </head>
@@ -116,7 +121,7 @@ export const STREAMING_LAB_HTML = String.raw`<!doctype html>
   <header>
     <div class="brand-row">
       <div class="brand-lockup">
-        <div class="cf-mark">cf</div>
+        <div class="cf-mark" aria-hidden="true">CF</div>
         <div>
           <h1>Flue Agent Streaming Lab</h1>
           <p>Cloudflare/Kumo-inspired streaming console for protected Flue agent streams. Token stays in this browser only.</p>
@@ -156,22 +161,22 @@ export const STREAMING_LAB_HTML = String.raw`<!doctype html>
 
     <section>
       <div class="toolbar">
-        <span class="badge" id="status">idle</span>
-        <span class="badge" id="timing">0 ms</span>
+        <span class="badge" id="status"><span class="status-dot"></span> idle</span>
+        <span class="badge metric" id="timing">0 ms</span>
         <span class="badge" id="submission">no submission</span>
       </div>
       <div class="grid" style="margin-top: 14px;">
         <div>
           <label>Assistant text / extracted stream content</label>
-          <pre id="assistantText"></pre>
+          <pre id="assistantText" data-empty="Assistant text will appear here as stream events arrive."></pre>
         </div>
         <div>
           <label>Receipt / result JSON</label>
-          <pre id="receipt"></pre>
+          <pre id="receipt" data-empty="Submission receipt or wait=result JSON will appear here."></pre>
         </div>
       </div>
       <label>Raw stream events</label>
-      <pre id="events"></pre>
+      <pre id="events" data-empty="Raw SSE events will appear here. Start a stream to inspect event timing and payloads."></pre>
     </section>
   </main>
 
@@ -240,7 +245,7 @@ export const STREAMING_LAB_HTML = String.raw`<!doctype html>
       $('streamBtn').disabled = running;
       $('waitBtn').disabled = running;
       $('stopBtn').disabled = !running;
-      $('status').textContent = running ? 'running' : 'idle';
+      $('status').innerHTML = '<span class="status-dot"></span> ' + (running ? 'running' : 'idle');
       $('status').className = running ? 'badge status-ok' : 'badge';
     }
 
@@ -291,7 +296,7 @@ export const STREAMING_LAB_HTML = String.raw`<!doctype html>
         if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + text);
         const json = JSON.parse(text);
         $('assistantText').textContent = json.result && json.result.text ? json.result.text : '';
-        $('status').textContent = 'done ' + res.status;
+        $('status').innerHTML = '<span class="status-dot"></span> done ' + res.status;
       } catch (error) {
         fail(error);
       } finally {
@@ -322,7 +327,7 @@ export const STREAMING_LAB_HTML = String.raw`<!doctype html>
         const offset = encodeURIComponent(receipt.offset || '-1');
         const streamPath = '/agents/' + agent + '/' + id + '?offset=' + offset + '&live=sse';
         await streamSse(endpoint(streamPath));
-        $('status').textContent = 'stream complete';
+        $('status').innerHTML = '<span class="status-dot"></span> stream complete';
       } catch (error) {
         if (error && error.name !== 'AbortError') fail(error);
       } finally {
@@ -375,7 +380,7 @@ export const STREAMING_LAB_HTML = String.raw`<!doctype html>
       const text = extractText(parsed);
       if (text) $('assistantText').textContent += text;
       const type = parsed && typeof parsed === 'object' ? (parsed.type || parsed.event || eventName) : eventName;
-      if (type === 'idle' || type === 'submission_settled') $('status').textContent = type;
+      if (type === 'idle' || type === 'submission_settled') $('status').innerHTML = '<span class="status-dot"></span> ' + type;
     }
 
     function extractText(value) {
@@ -412,7 +417,7 @@ export const STREAMING_LAB_HTML = String.raw`<!doctype html>
     }
 
     function fail(error) {
-      $('status').textContent = 'error';
+      $('status').innerHTML = '<span class="status-dot"></span> error';
       $('status').className = 'badge status-bad';
       logEvent('error', { message: error && error.message ? error.message : String(error) });
     }
