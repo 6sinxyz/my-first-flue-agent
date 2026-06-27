@@ -13,7 +13,7 @@ See `docs/calling-flue.md` for raw HTTP, SDK, React, script, and production URL 
 - `web-extractor`: URL extraction. Uses safe `fetch` and HTML parsing unless a Cloudflare Browser binding is wired later.
 - `docs-rag`: small built-in documentation search agent with citations.
 - `email-processor`: test-mode email payload and CSV link/attachment processing. Production Cloudflare Email Routing still needs an `email()` handler/binding setup.
-- `memory-dispatcher`: stable-id memory for dispatch decisions over calculator, data-cleaner, workspace, docs, and web demos. Use `reset_memory` to clear it.
+- `memory-dispatcher`: stable-id memory for dispatch decisions over calculator, code-mode, hybrid-data-cleaner, workspace, docs, web, and email demos. Use `reset_memory` to clear it.
 
 ## Frontend and scripts
 
@@ -34,7 +34,10 @@ The frontend pattern is:
 ```ts
 import { createFlueClient } from '@flue/sdk';
 
-const flue = createFlueClient({ baseUrl: import.meta.env.VITE_FLUE_URL ?? '/' });
+const flue = createFlueClient({
+  baseUrl: import.meta.env.VITE_FLUE_URL ?? '/',
+  token: import.meta.env.VITE_FLUE_API_TOKEN,
+});
 const result = await flue.agents.prompt('docs-rag', 'browser-session', {
   message: 'How do raw HTTP streams work?',
 });
@@ -47,7 +50,8 @@ const result = await flue.agents.prompt('docs-rag', 'browser-session', {
 Set the production base URL once:
 
 ```sh
-export PROD_URL="https://my-first-flue-agent.<your-workers-subdomain>.workers.dev"
+export PROD_URL="https://my-first-flue-agent.thecatcner.workers.dev"
+export FLUE_API_TOKEN="<real-token-value>"
 ```
 
 Wait for an agent result with `?wait=result`:
@@ -55,6 +59,7 @@ Wait for an agent result with `?wait=result`:
 ```sh
 curl -sS "$PROD_URL/agents/docs-rag/demo-docs?wait=result" \
   -H 'content-type: application/json' \
+  -H "authorization: Bearer $FLUE_API_TOKEN" \
   -d '{"message":"How do I invoke a Flue workflow?"}'
 ```
 
@@ -63,9 +68,11 @@ Fire and stream:
 ```sh
 curl -sS "$PROD_URL/agents/workspace/demo-workspace" \
   -H 'content-type: application/json' \
+  -H "authorization: Bearer $FLUE_API_TOKEN" \
   -d '{"message":"write notes.txt with hello, then list files"}'
 
-curl -N "$PROD_URL/agents/workspace/demo-workspace?offset=-1&live=sse"
+curl -N "$PROD_URL/agents/workspace/demo-workspace?offset=-1&live=sse" \
+  -H "authorization: Bearer $FLUE_API_TOKEN"
 ```
 
 Invoke a workflow and wait for the result:
@@ -73,14 +80,17 @@ Invoke a workflow and wait for the result:
 ```sh
 curl -sS "$PROD_URL/workflows/repeatable-report?wait=result" \
   -H 'content-type: application/json' \
+  -H "authorization: Bearer $FLUE_API_TOKEN" \
   -d '{"input":{"items":["Beta","alpha"," beta "],"label":"prod-demo"}}'
 ```
 
 Inspect a workflow run:
 
 ```sh
-curl -sS "$PROD_URL/runs/$RUN_ID?meta"
-curl -N "$PROD_URL/runs/$RUN_ID?offset=-1&live=sse"
+curl -sS "$PROD_URL/runs/$RUN_ID?meta" \
+  -H "authorization: Bearer $FLUE_API_TOKEN"
+curl -N "$PROD_URL/runs/$RUN_ID?offset=-1&live=sse" \
+  -H "authorization: Bearer $FLUE_API_TOKEN"
 ```
 
 ## JS SDK
@@ -90,7 +100,10 @@ curl -N "$PROD_URL/runs/$RUN_ID?offset=-1&live=sse"
 ```ts
 import { createFlueClient } from '@flue/sdk';
 
-const client = createFlueClient({ baseUrl: process.env.PROD_URL! });
+const client = createFlueClient({
+  baseUrl: process.env.PROD_URL!,
+  token: process.env.FLUE_API_TOKEN!,
+});
 
 const code = await client.agents.prompt('code-mode', 'demo-code', {
   message: 'Run 21 * 2',
@@ -119,18 +132,22 @@ const workflow = await client.workflows.invoke('repeatable-report', {
 ```sh
 curl -sS "$PROD_URL/agents/code-mode/demo-code?wait=result" \
   -H 'content-type: application/json' \
+  -H "authorization: Bearer $FLUE_API_TOKEN" \
   -d '{"message":"Run (10 + 5) * 3"}'
 
 curl -sS "$PROD_URL/agents/hybrid-data-cleaner/demo-data?wait=result" \
   -H 'content-type: application/json' \
+  -H "authorization: Bearer $FLUE_API_TOKEN" \
   -d '{"message":"Use lightweight inspect on inline:name,age\nA,10\nB,"}'
 
 curl -sS "$PROD_URL/agents/email-processor/demo-email?wait=result" \
   -H 'content-type: application/json' \
+  -H "authorization: Bearer $FLUE_API_TOKEN" \
   -d '{"message":"Process this email payload: from ops@example.com, subject CSV, text https://example.com/file.csv"}'
 
 curl -sS "$PROD_URL/agents/memory-dispatcher/alice?wait=result" \
   -H 'content-type: application/json' \
+  -H "authorization: Bearer $FLUE_API_TOKEN" \
   -d '{"message":"Remember that I prefer docs answers with short citations, then dispatch this: how do agent streams work?"}'
 ```
 
