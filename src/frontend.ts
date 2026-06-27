@@ -5,34 +5,108 @@ export const STREAMING_LAB_HTML = String.raw`<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Flue Agent Streaming Lab</title>
   <style>
-    :root { color-scheme: dark; --bg: #080b12; --panel: #111827; --muted: #94a3b8; --text: #e5e7eb; --accent: #60a5fa; --ok: #34d399; --bad: #fb7185; --border: #263244; }
+    :root {
+      color-scheme: light dark;
+      /* Kumo/Cloudflare 7 inspired semantic tokens. Static UI avoids the React Kumo build chain. */
+      --kumo-base: light-dark(#f7f7f5, #080808);
+      --kumo-elevated: light-dark(#ffffff, #111111);
+      --kumo-recessed: light-dark(#f1f1ef, #181818);
+      --kumo-line: light-dark(#d8d8d3, #303030);
+      --kumo-hairline: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.10));
+      --kumo-default: light-dark(#171717, #f5f5f4);
+      --kumo-subtle: light-dark(#5f625d, #a7aaa4);
+      --kumo-muted: light-dark(#787b74, #8e928b);
+      --kumo-brand: #f6821f;
+      --kumo-brand-strong: #faae40;
+      --kumo-accent: #0051c3;
+      --kumo-accent-soft: light-dark(#e8f1ff, #0b2247);
+      --kumo-success: #15803d;
+      --kumo-danger: #dc2626;
+      --kumo-warning: #b45309;
+      --kumo-radius-sm: 8px;
+      --kumo-radius-md: 12px;
+      --kumo-radius-lg: 18px;
+      --kumo-shadow: 0 1px 2px rgba(0,0,0,.08), 0 18px 48px rgba(0,0,0,.10);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at top left, #172554, var(--bg) 42rem); color: var(--text); }
-    header { padding: 24px; border-bottom: 1px solid var(--border); background: rgba(8, 11, 18, 0.78); backdrop-filter: blur(14px); position: sticky; top: 0; z-index: 2; }
-    h1 { margin: 0 0 6px; font-size: 24px; }
-    header p { margin: 0; color: var(--muted); }
-    main { display: grid; grid-template-columns: minmax(340px, 460px) 1fr; gap: 18px; padding: 18px; max-width: 1500px; margin: 0 auto; }
-    section { background: rgba(17, 24, 39, 0.9); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: 0 20px 55px rgba(0, 0, 0, 0.25); }
-    label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 13px 0 6px; }
-    input, select, textarea, button { width: 100%; border: 1px solid var(--border); border-radius: 10px; background: #0b1220; color: var(--text); padding: 10px 12px; font: inherit; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--kumo-brand) 18%, transparent), transparent 28rem),
+        radial-gradient(circle at 88% 10%, color-mix(in srgb, var(--kumo-accent) 16%, transparent), transparent 32rem),
+        var(--kumo-base);
+      color: var(--kumo-default);
+    }
+    header {
+      padding: 24px clamp(16px, 4vw, 36px);
+      border-bottom: 1px solid var(--kumo-hairline);
+      background: color-mix(in srgb, var(--kumo-elevated) 86%, transparent);
+      backdrop-filter: blur(18px);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .brand-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .brand-lockup { display: flex; align-items: center; gap: 14px; }
+    .cf-mark {
+      width: 42px; height: 42px; border-radius: 13px;
+      display: grid; place-items: center;
+      color: #111; font-weight: 950; letter-spacing: -0.08em;
+      background: linear-gradient(135deg, var(--kumo-brand-strong), var(--kumo-brand));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 26px color-mix(in srgb, var(--kumo-brand) 35%, transparent);
+    }
+    h1 { margin: 0 0 4px; font-size: clamp(22px, 3vw, 30px); letter-spacing: -0.04em; }
+    header p { margin: 0; color: var(--kumo-subtle); line-height: 1.45; }
+    main { display: grid; grid-template-columns: minmax(340px, 460px) 1fr; gap: 18px; padding: 18px; max-width: 1520px; margin: 0 auto; }
+    section {
+      background: color-mix(in srgb, var(--kumo-elevated) 94%, transparent);
+      border: 1px solid var(--kumo-hairline);
+      border-radius: var(--kumo-radius-lg);
+      padding: 16px;
+      box-shadow: var(--kumo-shadow);
+    }
+    .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    label { display: block; font-size: 12px; font-weight: 750; color: var(--kumo-subtle); text-transform: uppercase; letter-spacing: .055em; margin: 13px 0 6px; }
+    input, select, textarea, button {
+      width: 100%; border: 1px solid var(--kumo-line); border-radius: var(--kumo-radius-md);
+      background: var(--kumo-recessed); color: var(--kumo-default); padding: 10px 12px; font: inherit;
+      outline: none; transition: border-color .15s ease, box-shadow .15s ease, background .15s ease, transform .08s ease;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--kumo-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--kumo-accent) 20%, transparent); }
     textarea { min-height: 128px; resize: vertical; line-height: 1.45; }
-    button { cursor: pointer; font-weight: 800; background: linear-gradient(135deg, #2563eb, #7c3aed); border: 0; }
-    button.secondary { background: #1f2937; border: 1px solid var(--border); }
-    button.danger { background: #7f1d1d; }
-    button:disabled { opacity: .55; cursor: not-allowed; }
+    button {
+      cursor: pointer; font-weight: 780; background: var(--kumo-brand); color: #111; border-color: transparent;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 8px 18px color-mix(in srgb, var(--kumo-brand) 20%, transparent);
+    }
+    button:hover:not(:disabled) { transform: translateY(-1px); background: var(--kumo-brand-strong); }
+    button.secondary { background: var(--kumo-elevated); color: var(--kumo-default); border: 1px solid var(--kumo-line); box-shadow: none; }
+    button.secondary:hover:not(:disabled) { background: var(--kumo-accent-soft); }
+    button.danger { background: color-mix(in srgb, var(--kumo-danger) 85%, #111); color: white; }
+    button:disabled { opacity: .55; cursor: not-allowed; transform: none; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 14px; }
-    .hint { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.5; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: 12px; margin-right: 6px; }
-    .status-ok { color: var(--ok); }
-    .status-bad { color: var(--bad); }
+    .hint { color: var(--kumo-subtle); font-size: 12px; margin-top: 8px; line-height: 1.55; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px;
+      border: 1px solid var(--kumo-hairline); border-radius: 999px; color: var(--kumo-subtle);
+      background: var(--kumo-recessed); font-size: 12px; line-height: 1.2;
+    }
+    .badge.brand { color: #111; border-color: transparent; background: var(--kumo-brand); font-weight: 800; }
+    .status-ok { color: var(--kumo-success); }
+    .status-bad { color: var(--kumo-danger); }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-    pre { white-space: pre-wrap; word-break: break-word; background: #020617; border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin: 0; max-height: 520px; overflow: auto; font-size: 12px; line-height: 1.45; }
+    pre {
+      white-space: pre-wrap; word-break: break-word; background: var(--kumo-recessed); color: var(--kumo-default);
+      border: 1px solid var(--kumo-hairline); border-radius: var(--kumo-radius-md); padding: 12px; margin: 0;
+      max-height: 520px; overflow: auto; font-size: 12px; line-height: 1.45;
+    }
+    code { color: var(--kumo-default); background: var(--kumo-recessed); border: 1px solid var(--kumo-hairline); border-radius: 6px; padding: 1px 4px; }
     #assistantText { min-height: 220px; font-size: 14px; }
-    #events { min-height: 500px; }
-    .event { border-bottom: 1px solid #1f2937; padding: 8px 0; }
-    .event strong { color: var(--accent); }
-    .event small { color: var(--muted); }
+    #events { min-height: 500px; background: color-mix(in srgb, var(--kumo-recessed) 92%, black); }
+    .event { border-bottom: 1px solid var(--kumo-hairline); padding: 8px 0; }
+    .event strong { color: var(--kumo-accent); }
+    .event small { color: var(--kumo-muted); }
     .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
     .toolbar button { width: auto; padding: 7px 10px; font-size: 12px; }
     @media (max-width: 980px) { main, .grid { grid-template-columns: 1fr; } header { position: static; } }
@@ -40,11 +114,20 @@ export const STREAMING_LAB_HTML = String.raw`<!doctype html>
 </head>
 <body>
   <header>
-    <h1>Flue Agent Streaming Lab</h1>
-    <p>Same-origin Cloudflare Worker UI for testing protected Flue agent streams. Token stays in this browser only.</p>
+    <div class="brand-row">
+      <div class="brand-lockup">
+        <div class="cf-mark">cf</div>
+        <div>
+          <h1>Flue Agent Streaming Lab</h1>
+          <p>Cloudflare/Kumo-inspired streaming console for protected Flue agent streams. Token stays in this browser only.</p>
+        </div>
+      </div>
+      <span class="badge brand">Cloudflare Worker</span>
+    </div>
   </header>
   <main>
     <section>
+      <div class="panel-title"><span class="badge brand">Kumo-style lab</span><span class="badge">fetch streaming + Bearer auth</span></div>
       <div class="badge">Best practice: use <code>fetch</code> streaming, not EventSource, so Authorization headers are sent.</div>
       <label for="baseUrl">Base URL</label>
       <input id="baseUrl" placeholder="https://my-first-flue-agent.thecatcner.workers.dev" />

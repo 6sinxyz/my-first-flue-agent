@@ -15,6 +15,17 @@ https://my-first-flue-agent.thecatcner.workers.dev/lab
 - Testers paste the token into the browser; it is saved only in browser `localStorage` for convenience.
 - The UI uses `fetch()` plus a `ReadableStream` to consume `?live=sse`, because browser `EventSource` cannot send custom `Authorization` headers.
 
+## Cloudflare/Kumo UI guidance
+
+The UI follows the visual language of Cloudflare's Kumo / Cloudflare 7 design system while staying a zero-build static Worker page:
+
+- semantic surface tokens (`base`, `elevated`, `recessed`, `line`, `hairline`) instead of raw one-off colors;
+- Cloudflare brand orange for primary actions and a restrained blue accent for focus/event state;
+- accessible focus rings, high-contrast text, rounded controls, and surface hierarchy;
+- no embedded secret and no React/Kumo bundle added yet.
+
+Kumo itself is a React component library (`@cloudflare/kumo`) with React peer dependencies. This repo currently does not have a frontend build pipeline, so `/lab` mirrors the token and component style in plain HTML/CSS. A future React migration can replace the static controls with Kumo `Button`, `Input`, `Select`, and related components.
+
 ## Supported flow
 
 1. `POST /agents/:name/:id` with `{ "message": "..." }`.
