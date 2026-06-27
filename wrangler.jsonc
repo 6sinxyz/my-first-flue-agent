@@ -24,6 +24,12 @@
         "FlueCalculatorAgent",
         "FlueRouterAgent"
       ]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": [
+        "FlueDataCleanerAgent"
+      ]
     }
   ]
 }
