@@ -13,6 +13,38 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 PYTHON = os.environ.get("DC_PYTHON", "python3")
 HOST, PORT = "127.0.0.1", int(os.environ.get("DC_PYTHON_PORT", "8790"))
 
+def _clean_json(o):
+    import math
+    if isinstance(o, float) and (math.isnan(o) or math.isinf(o)):
+        return None
+    if isinstance(o, dict):
+        return {k: _clean_json(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_clean_json(x) for x in o]
+    return o
+
+def _sanitize_stdout(stdout):
+    """Re-serialize python JSON output with NaN/Infinity -> null so it is valid JSON
+    for Flue's tool-output serialization (which rejects non-JSON values)."""
+    t = stdout.strip()
+    if not t:
+        return stdout
+    # the snippet may print warnings first; try parse the last JSON-looking line(s)
+    try:
+        import json
+        obj = json.loads(t)
+        return json.dumps(_clean_json(obj), ensure_ascii=False) + "\n"
+    except Exception:
+        # fall back: try parsing trailing JSON object
+        for i in range(len(t)):
+            try:
+                import json
+                obj = json.loads(t[i:])
+                return t[:i] + json.dumps(_clean_json(obj), ensure_ascii=False) + "\n"
+            except Exception:
+                continue
+    return stdout
+
 class H(BaseHTTPRequestHandler):
     def _json(self, code, obj):
         b = json.dumps(obj).encode()
@@ -54,7 +86,7 @@ class H(BaseHTTPRequestHandler):
                                 capture_output=True, text=True, timeout=timeout)
             ok = (p.returncode == 0)
             return self._json(200, {
-                "ok": ok, "stdout": p.stdout[-4000:], "stderr": p.stderr[-4000:],
+                "ok": ok, "stdout": _sanitize_stdout(p.stdout)[-4000:], "stderr": p.stderr[-4000:],
                 "exitCode": p.returncode,
                 "resultPath": result_path if ok and os.path.exists(result_path) else None,
             })
