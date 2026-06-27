@@ -81,7 +81,7 @@ Invoke a workflow and wait for the result:
 curl -sS "$PROD_URL/workflows/repeatable-report?wait=result" \
   -H 'content-type: application/json' \
   -H "authorization: Bearer $FLUE_API_TOKEN" \
-  -d '{"input":{"items":["Beta","alpha"," beta "],"label":"prod-demo"}}'
+  -d '{"items":["Beta","alpha"," beta "],"label":"prod-demo"}'
 ```
 
 Inspect a workflow run:

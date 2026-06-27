@@ -113,7 +113,7 @@ Workflow result and streams:
 curl -sS "$PROD_URL/workflows/repeatable-report?wait=result" \
   -H 'content-type: application/json' \
   -H "authorization: Bearer $FLUE_API_TOKEN" \
-  -d '{"input":{"items":["Beta","alpha"," beta "],"label":"prod-demo"}}'
+  -d '{"items":["Beta","alpha"," beta "],"label":"prod-demo"}'
 
 curl -sS "$PROD_URL/runs/$RUN_ID?meta" \
   -H "authorization: Bearer $FLUE_API_TOKEN"
