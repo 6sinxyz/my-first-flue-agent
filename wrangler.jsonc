@@ -44,6 +44,25 @@
       "new_sqlite_classes": [
         "Sandbox"
       ]
+    },
+    {
+      "tag": "v5",
+      "new_sqlite_classes": [
+        "DemoJsonStore",
+        "FlueCodeModeAgent",
+        "FlueWorkspaceAgent",
+        "FlueHybridDataCleanerAgent",
+        "FlueWebExtractorAgent",
+        "FlueDocsRagAgent",
+        "FlueEmailProcessorAgent",
+        "FlueMemoryDispatcherAgent"
+      ]
+    },
+    {
+      "tag": "v6",
+      "new_sqlite_classes": [
+        "FlueRepeatableReportWorkflow"
+      ]
     }
   ],
   "durable_objects": {
@@ -51,6 +70,10 @@
       {
         "name": "Sandbox",
         "class_name": "Sandbox"
+      },
+      {
+        "name": "DEMO_JSON_STORE",
+        "class_name": "DemoJsonStore"
       }
     ]
   }

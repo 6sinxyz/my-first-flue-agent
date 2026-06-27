@@ -13,6 +13,28 @@
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["FlueRegistry", "FlueHelloWorldAgent"] },
     { "tag": "v2", "new_sqlite_classes": ["FlueCalculatorAgent", "FlueRouterAgent"] },
-    { "tag": "v3", "new_sqlite_classes": ["FlueDataCleanerAgent"] }
-  ]
+    { "tag": "v3", "new_sqlite_classes": ["FlueDataCleanerAgent"] },
+    {
+      "tag": "v4",
+      "new_sqlite_classes": [
+        "DemoJsonStore",
+        "FlueCodeModeAgent",
+        "FlueWorkspaceAgent",
+        "FlueHybridDataCleanerAgent",
+        "FlueWebExtractorAgent",
+        "FlueDocsRagAgent",
+        "FlueEmailProcessorAgent",
+        "FlueMemoryDispatcherAgent",
+        "FlueRepeatableReportWorkflow"
+      ]
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "DEMO_JSON_STORE",
+        "class_name": "DemoJsonStore"
+      }
+    ]
+  }
 }

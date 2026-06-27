@@ -8,3 +8,4 @@ dist
 .wrangler
 .flue-vite.wrangler.jsonc
 out/
+.flue-vite/

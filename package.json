@@ -8,6 +8,10 @@
     "dev": "flue dev --target cloudflare",
     "build": "flue build --target cloudflare",
     "run:hello": "flue run --target cloudflare hello-world --input '{\"message\":\"hello\"}'",
+    "run:code-mode": "flue run --target cloudflare code-mode --input '{\"message\":\"run 2 + 3 * 4\"}'",
+    "run:workspace": "flue run --target cloudflare workspace --id demo-workspace --input '{\"message\":\"write notes/todo.txt with two todo items, then read it back\"}'",
+    "run:workflow": "flue run --target cloudflare repeatable-report --input '{\"items\":[\"Beta\",\"alpha\",\" beta \"],\"label\":\"demo\"}'",
+    "run:docs-rag": "flue run --target cloudflare docs-rag --input '{\"message\":\"How do I wait for an agent result over HTTP?\"}'",
     "deploy:dry": "wrangler deploy --dry-run --config dist/my_first_flue_agent/wrangler.json",
     "deploy": "wrangler deploy --config dist/my_first_flue_agent/wrangler.json",
     "typecheck": "tsc --noEmit"
@@ -17,6 +21,7 @@
   "license": "ISC",
   "dependencies": {
     "@cloudflare/sandbox": "0.9.1",
+    "@flue/sdk": "1.0.0-beta.6",
     "@flue/runtime": "1.0.0-beta.6",
     "agents": "^0.14.5",
     "valibot": "^1.4.1"
