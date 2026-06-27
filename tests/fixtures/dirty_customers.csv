@@ -1,0 +1,11 @@
+id,name,age,income,email,signup_date
+1,Alice,30,50000,alice@example.com,2024-01-15
+2,Bob,-5,62000,bob@example.com,2024-02-20
+3,Charlie,150,58000,charlie@example.com,01/03/2024
+4,Diana,28,,diana@example.com,2024-03-10
+5,Eve,35,999999,eve@example.com,2024-04-05
+6,Frank,42,71000,alice@example.com,2024-01-15
+7,Grace,33,49000,grace@example.com,2024/5/1
+8,Heidi,-10,55000,heidi@example.com,2024-06-12
+9,Ivan,45,,ivan@example.com,2024-07-22
+10,Judy,twenty,63000,judy@example.com,2024-08-30

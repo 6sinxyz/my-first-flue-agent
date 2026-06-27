@@ -37,8 +37,9 @@ import {
 import { registerApiProvider, registerProvider } from '@flue/runtime';
 
 import * as handler_calculator_0 from "/Users/alexa/workspace/my-first-flue-agent/src/agents/calculator.ts";
-import * as handler_hello_world_1 from "/Users/alexa/workspace/my-first-flue-agent/src/agents/hello-world.ts";
-import * as handler_router_2 from "/Users/alexa/workspace/my-first-flue-agent/src/agents/router.ts";
+import * as handler_data_cleaner_1 from "/Users/alexa/workspace/my-first-flue-agent/src/agents/data-cleaner.ts";
+import * as handler_hello_world_2 from "/Users/alexa/workspace/my-first-flue-agent/src/agents/hello-world.ts";
+import * as handler_router_3 from "/Users/alexa/workspace/my-first-flue-agent/src/agents/router.ts";
 
 
 
@@ -116,8 +117,9 @@ function normalizeBuiltModules(agentModules, workflowModules, channelModules = {
 
 const agentModules = {
   "calculator": handler_calculator_0,
-  "hello-world": handler_hello_world_1,
-  "router": handler_router_2,
+  "data-cleaner": handler_data_cleaner_1,
+  "hello-world": handler_hello_world_2,
+  "router": handler_router_3,
 };
 const workflowModules = {
 
@@ -128,6 +130,7 @@ const channelModules = {
 const { agents, workflows, channelHandlers } = normalizeBuiltModules(agentModules, workflowModules, channelModules);
 const agentIdentities = {
   "calculator": { bindingName: "FLUE_CALCULATOR_AGENT", className: "FlueCalculatorAgent" },
+  "data-cleaner": { bindingName: "FLUE_DATA_CLEANER_AGENT", className: "FlueDataCleanerAgent" },
   "hello-world": { bindingName: "FLUE_HELLO_WORLD_AGENT", className: "FlueHelloWorldAgent" },
   "router": { bindingName: "FLUE_ROUTER_AGENT", className: "FlueRouterAgent" },
 };
@@ -136,7 +139,7 @@ const workflowIdentities = {
 };
 
 const userCloudflare = {};
-const reservedCloudflareExportNames = new Set(["FlueCalculatorAgent","FlueHelloWorldAgent","FlueRouterAgent","FlueRegistry"]);
+const reservedCloudflareExportNames = new Set(["FlueCalculatorAgent","FlueDataCleanerAgent","FlueHelloWorldAgent","FlueRouterAgent","FlueRegistry"]);
 for (const name of Object.keys(userCloudflare)) {
   if (name === 'default') continue;
   if (reservedCloudflareExportNames.has(name)) {
@@ -437,8 +440,35 @@ const FlueCalculatorAgent = class FlueCalculatorAgent extends agentExtension0.ba
 const WrappedFlueCalculatorAgent = agentExtension0.wrap(FlueCalculatorAgent);
 export { WrappedFlueCalculatorAgent as FlueCalculatorAgent };
 
-const agentExtension1 = resolveCloudflareExtension(agentModules["hello-world"], "hello-world", 'Agent');
-const FlueHelloWorldAgent = class FlueHelloWorldAgent extends agentExtension1.base(Agent) {
+const agentExtension1 = resolveCloudflareExtension(agentModules["data-cleaner"], "data-cleaner", 'Agent');
+const FlueDataCleanerAgent = class FlueDataCleanerAgent extends agentExtension1.base(Agent) {
+  constructor(ctx, env) {
+    const prepared = cloudflareAgents.prepare({ storage: ctx.storage, className: "FlueDataCleanerAgent", agentName: "data-cleaner" });
+    super(ctx, env);
+    cloudflareAgents.attach(this, prepared);
+  }
+
+  onStart(props) {
+    return cloudflareAgents.onStart(this, () => typeof super.onStart === 'function' ? super.onStart(props) : undefined);
+  }
+
+  __flueWakeAgentSubmissions() {
+    return cloudflareAgents.wakeSubmissions(this);
+  }
+
+  onRequest(request) {
+    return cloudflareAgents.onRequest(this, request);
+  }
+
+  onFiberRecovered(ctx) {
+    return cloudflareAgents.onFiberRecovered(this, ctx, () => typeof super.onFiberRecovered === 'function' ? super.onFiberRecovered(ctx) : undefined);
+  }
+};
+const WrappedFlueDataCleanerAgent = agentExtension1.wrap(FlueDataCleanerAgent);
+export { WrappedFlueDataCleanerAgent as FlueDataCleanerAgent };
+
+const agentExtension2 = resolveCloudflareExtension(agentModules["hello-world"], "hello-world", 'Agent');
+const FlueHelloWorldAgent = class FlueHelloWorldAgent extends agentExtension2.base(Agent) {
   constructor(ctx, env) {
     const prepared = cloudflareAgents.prepare({ storage: ctx.storage, className: "FlueHelloWorldAgent", agentName: "hello-world" });
     super(ctx, env);
@@ -461,11 +491,11 @@ const FlueHelloWorldAgent = class FlueHelloWorldAgent extends agentExtension1.ba
     return cloudflareAgents.onFiberRecovered(this, ctx, () => typeof super.onFiberRecovered === 'function' ? super.onFiberRecovered(ctx) : undefined);
   }
 };
-const WrappedFlueHelloWorldAgent = agentExtension1.wrap(FlueHelloWorldAgent);
+const WrappedFlueHelloWorldAgent = agentExtension2.wrap(FlueHelloWorldAgent);
 export { WrappedFlueHelloWorldAgent as FlueHelloWorldAgent };
 
-const agentExtension2 = resolveCloudflareExtension(agentModules["router"], "router", 'Agent');
-const FlueRouterAgent = class FlueRouterAgent extends agentExtension2.base(Agent) {
+const agentExtension3 = resolveCloudflareExtension(agentModules["router"], "router", 'Agent');
+const FlueRouterAgent = class FlueRouterAgent extends agentExtension3.base(Agent) {
   constructor(ctx, env) {
     const prepared = cloudflareAgents.prepare({ storage: ctx.storage, className: "FlueRouterAgent", agentName: "router" });
     super(ctx, env);
@@ -488,7 +518,7 @@ const FlueRouterAgent = class FlueRouterAgent extends agentExtension2.base(Agent
     return cloudflareAgents.onFiberRecovered(this, ctx, () => typeof super.onFiberRecovered === 'function' ? super.onFiberRecovered(ctx) : undefined);
   }
 };
-const WrappedFlueRouterAgent = agentExtension2.wrap(FlueRouterAgent);
+const WrappedFlueRouterAgent = agentExtension3.wrap(FlueRouterAgent);
 export { WrappedFlueRouterAgent as FlueRouterAgent };
 
 
