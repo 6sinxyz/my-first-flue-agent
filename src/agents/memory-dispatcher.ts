@@ -40,7 +40,7 @@ export default defineAgent(({ id, env }: { id: string; env: any }) => {
   const workspaceSubagent = defineAgentProfile({
     name: 'workspace',
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
-    instructions: 'Workspace subagent. Use workspace tools for write, read, list, grep, diff, and reset operations. Files persist for the stable agent id.',
+    instructions: 'Workspace subagent. Use workspace tools for write, read, list, workspace_grep, diff, and reset operations. Files persist for the stable agent id.',
     tools: makeWorkspaceTools(env, id),
   });
   const webSubagent = defineAgentProfile({

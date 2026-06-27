@@ -7,7 +7,7 @@ See `docs/calling-flue.md` for raw HTTP, SDK, React, script, and production URL 
 ## Agents and workflow
 
 - `code-mode`: short deterministic JavaScript arithmetic execution. The installed Flue/Cloudflare runtime does not expose a Dynamic Worker code-mode API, so the demo uses a constrained arithmetic parser fallback and reports that limitation.
-- `workspace`: durable write/read/list/grep/diff/reset workspace. Files are keyed by the stable agent id and backed by `DemoJsonStore` in production, with an in-memory dev fallback.
+- `workspace`: durable write/read/list/workspace_grep/diff/reset workspace. Files are keyed by the stable agent id and backed by `DemoJsonStore` in production, with an in-memory dev fallback.
 - `hybrid-data-cleaner`: Worker-side CSV inspect/validate/anomaly tools plus the existing pandas container tools for transforms. `benchmark_inspect` compares Worker inspect with `inspect_data`.
 - `repeatable-report`: Flue `defineWorkflow` equivalent for a repeatable deterministic workflow. `@cloudflare/dynamic-workflows` is not exposed by the installed packages.
 - `web-extractor`: URL extraction. Uses safe `fetch` and HTML parsing unless a Cloudflare Browser binding is wired later.

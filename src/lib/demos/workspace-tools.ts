@@ -60,8 +60,8 @@ export function makeWorkspaceTools(env: any, agentId: string) {
     run: async () => ({ files: Object.keys(await readWorkspace()).sort() }),
   });
 
-  const grep = defineTool({
-    name: 'grep',
+  const workspaceGrep = defineTool({
+    name: 'workspace_grep',
     description: 'Search workspace files by substring or JavaScript regular expression.',
     input: v.object({ query: v.string(), regex: v.optional(v.boolean()) }),
     run: async ({ input }) => {
@@ -99,5 +99,5 @@ export function makeWorkspaceTools(env: any, agentId: string) {
     },
   });
 
-  return [writeFile, readFile, listFiles, grep, diffFile, resetWorkspace];
+  return [writeFile, readFile, listFiles, workspaceGrep, diffFile, resetWorkspace];
 }
