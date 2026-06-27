@@ -1,6 +1,6 @@
 # Agent Streaming Lab
 
-The Worker serves a lightweight browser UI at `/lab` for testing Flue agent streaming in Cloudflare.
+The Worker serves a Kumo-powered browser UI at `/lab` for testing Flue agent streaming in Cloudflare.
 
 ## URL
 
@@ -8,23 +8,33 @@ The Worker serves a lightweight browser UI at `/lab` for testing Flue agent stre
 https://my-first-flue-agent.thecatcner.workers.dev/lab
 ```
 
+For the current draft PR preview on alexa/Tailscale:
+
+```text
+http://100.114.29.109:18994/lab
+```
+
 ## Security model
 
-- The page is static and public, but protected Flue routes still require `Authorization: Bearer <FLUE_API_TOKEN>`.
+- The page is public, but protected Flue routes still require `Authorization: Bearer <FLUE_API_TOKEN>`.
 - The token is never embedded in Worker code or committed files.
 - Testers paste the token into the browser; it is saved only in browser `localStorage` for convenience.
 - The UI uses `fetch()` plus a `ReadableStream` to consume `?live=sse`, because browser `EventSource` cannot send custom `Authorization` headers.
 
-## Cloudflare/Kumo UI guidance
+## Kumo / Cloudflare 7 implementation
 
-The UI follows the visual language of Cloudflare's Kumo / Cloudflare 7 design system while staying a zero-build static Worker page:
+This UI is a real React frontend built with Cloudflare's Kumo component library:
 
-- semantic surface tokens (`base`, `elevated`, `recessed`, `line`, `hairline`) instead of raw one-off colors;
-- Cloudflare brand orange for primary actions and a restrained blue accent for focus/event state;
-- accessible focus rings, high-contrast text, rounded controls, and surface hierarchy;
-- no embedded secret and no React/Kumo bundle added yet.
+- `@cloudflare/kumo`
+- `react` / `react-dom`
+- `@phosphor-icons/react`
+- `vite`
+- `@tailwindcss/vite`
+- `@cloudflare/kumo/styles/standalone`
 
-Kumo itself is a React component library (`@cloudflare/kumo`) with React peer dependencies. This repo currently does not have a frontend build pipeline, so `/lab` mirrors the token and component style in plain HTML/CSS. A future React migration can replace the static controls with Kumo `Button`, `Input`, `Select`, and related components.
+The Kumo/Vite app lives in `lab/`. `pnpm run build:lab` builds it and `scripts/generate-lab-html.mjs` inlines the resulting CSS/JS into `src/frontend.generated.ts`, which the existing Worker serves at `/lab`. This keeps deployment inside the existing Flue Worker while still using Kumo components instead of hand-written imitation styles.
+
+Do not edit `src/frontend.generated.ts` by hand; edit `lab/src/*` and rerun `pnpm run build:lab` or `pnpm run build`.
 
 ## Supported flow
 
@@ -33,4 +43,21 @@ Kumo itself is a React component library (`@cloudflare/kumo`) with React peer de
 3. `GET /agents/:name/:id?offset=<offset>&live=sse` with the same bearer token.
 4. Render raw events, extracted text, timings, and errors.
 
-This follows the same raw HTTP pattern documented in `docs/calling-flue.md` while keeping the implementation small enough to deploy with the existing Worker build.
+This follows the same raw HTTP pattern documented in `docs/calling-flue.md`.
+
+## Validation
+
+```sh
+pnpm run typecheck
+pnpm run build
+pnpm run deploy:dry
+```
+
+Preview:
+
+```sh
+pnpm run build
+FLUE_API_TOKEN="$(cat ~/.config/my-first-flue-agent/FLUE_API_TOKEN.txt)" \
+  pnpm exec wrangler dev --config dist/my_first_flue_agent/wrangler.json \
+  --port 18994 --ip 0.0.0.0 --remote
+```

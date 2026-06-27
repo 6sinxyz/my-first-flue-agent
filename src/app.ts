@@ -1,7 +1,7 @@
 import { flue } from '@flue/runtime/routing';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { cors } from 'hono/cors';
-import { STREAMING_LAB_HTML } from './frontend.js';
+import { STREAMING_LAB_HTML } from './frontend.generated.js';
 
 type Bindings = {
   FLUE_API_TOKEN?: string;
