@@ -8,6 +8,8 @@
 import { defineAgent, defineTool } from '@flue/runtime';
 import * as v from 'valibot';
 
+export const route = async (_c: any, next: any) => next();
+
 const add = defineTool({
   name: 'add',
   description: 'Add two numbers (a + b) and return the sum.',

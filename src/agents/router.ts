@@ -8,6 +8,8 @@
 import { defineAgent, defineAgentProfile } from '@flue/runtime';
 import { calcConfig } from './calculator.js';
 
+export const route = async (_c: any, next: any) => next();
+
 const calculatorSubagent = defineAgentProfile({
   name: 'calculator',
   ...calcConfig,
