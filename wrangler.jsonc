@@ -3,7 +3,9 @@
   "name": "my-first-flue-agent",
   "account_id": "e2d9809af7ce19ddf69f0ba687e678ac",
   "compatibility_date": "2026-06-01",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "ai": {
     "binding": "AI",
     "remote": true
@@ -11,7 +13,17 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["FlueRegistry", "FlueHelloWorldAgent"]
+      "new_sqlite_classes": [
+        "FlueRegistry",
+        "FlueHelloWorldAgent"
+      ]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": [
+        "FlueCalculatorAgent",
+        "FlueRouterAgent"
+      ]
     }
   ]
 }
