@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@cloudflare/sandbox':
-        specifier: 0.12.2
-        version: 0.12.2
+        specifier: 0.9.1
+        version: 0.9.1
       '@flue/runtime':
         specifier: 1.0.0-beta.6
         version: 1.0.0-beta.6(@cfworker/json-schema@4.1.1)(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(typebox@1.1.38)(typescript@6.0.3)(ws@8.21.0)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
@@ -308,8 +308,8 @@ packages:
     resolution: {integrity: sha512-jxQYkj8dSIzc0cD6cMMNdOc1UVjqSqu8BZdor5s8cGjW2I8BjODt/kWPVdY+u9zj3ms75Q5qaZgnxUad83+eAg==}
     engines: {node: '>=22.0.0'}
 
-  '@cloudflare/sandbox@0.12.2':
-    resolution: {integrity: sha512-B3hgDEJuNT7IomMVN/oFulRFiHcs0rDUKDRuA1T36dOgR7gGheEQs3YpNp07lbREy0w4Gv+xob61+JCqE8FyAQ==}
+  '@cloudflare/sandbox@0.9.1':
+    resolution: {integrity: sha512-i9I9/T7DUa+FLttpnZw+qZTctcFnM8obLZOPZqT/B9p5OwsmCRtc9Dtd8d11acUS7PyFigvooEjp37Bpq+IjBw==}
     peerDependencies:
       '@openai/agents': ^0.3.3
       '@opencode-ai/sdk': ^1.1.40
@@ -1258,8 +1258,8 @@ packages:
   caniuse-lite@1.0.30001799:
     resolution: {integrity: sha512-hG1bReV+OUU+MOqK4t/ZWI0tZOyz3rqS9XuhOUz1cIcbwBKjOyJEJuw9ER5JuNyqxNk8u/JUVbGibBOL1yrjFw==}
 
-  capnweb@0.8.0:
-    resolution: {integrity: sha512-BK/TuXUiyfLSKsmjojn70yN7oYG/JJzoURZ3tckjg5Zj2KcygPm0A5jyOlswK7SYB4f0Gh9tt+RZ132b80iLfA==}
+  capnweb@0.6.1:
+    resolution: {integrity: sha512-fmhV26QPd1ewf5R74h55oVZnGwIcSaRMzbfLQUy8+zOBjuTmT3KXoT8wxHvnp1m9Ht9BoUUS5ZwNLoVLfQTyBg==}
 
   chownr@1.1.4:
     resolution: {integrity: sha512-jJ0bqzaylmJtVnNgzTeSOs8DPavpbYgEr/b0YL8/2GO3xJEhInFmhKMUnEJQjZumK7KXGFhUy89PrsJWlakBVg==}
@@ -2774,11 +2774,11 @@ snapshots:
 
   '@cloudflare/kv-asset-handler@0.5.0': {}
 
-  '@cloudflare/sandbox@0.12.2':
+  '@cloudflare/sandbox@0.9.1':
     dependencies:
       '@cloudflare/containers': 0.3.7
       aws4fetch: 1.0.20
-      capnweb: 0.8.0
+      capnweb: 0.6.1
       hono: 4.12.27
 
   '@cloudflare/unenv-preset@2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260625.1)':
@@ -3605,7 +3605,7 @@ snapshots:
 
   caniuse-lite@1.0.30001799: {}
 
-  capnweb@0.8.0: {}
+  capnweb@0.6.1: {}
 
   chownr@1.1.4:
     optional: true
