@@ -2,15 +2,9 @@
  * Container-backed Python runner (Phase 2).
  *
  * Uses @cloudflare/sandbox: getSandbox(env.Sandbox, id) returns a sandbox stub
- * backed by an isolated container (image: registry.cloudflare.com/.../
- * my-first-flue-agent-sandbox:v1 — Alpine + node/bun + cloudflared + python3
- * + pandas 3.0.3 + numpy 2.4.4). The agent reaches it via sandbox.exec() /
- * readFile() / writeFile() — same contract as the local HTTP runner.
- *
- * Data staging: the container FS is isolated, so a local data_ref path is
- * meaningless in prod. runPandas/runPythonJson accept a data_ref that is either
- * an http(s) URL (fetched + written into the container) or an already-staged
- * container path (returned from a prior call). stageInput() handles the fetch.
+ * backed by an isolated container. The container FS is isolated, so prod inputs
+ * must be URL/R2-like refs, not local host paths. http(s) refs are fetched and
+ * staged into /workspace before pandas runs.
  */
 import { getSandbox } from '@cloudflare/sandbox';
 import { readCsv as localReadCsv, saveResult as localSaveResult, RUNNER_URL } from './python-runner.js';
@@ -30,11 +24,14 @@ function getStub(env: ContainerRunnerEnv, id: string) {
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-/**
- * Resolve a data_ref to a container-local path. http(s):// URLs are fetched
- * and written into /workspace; bare /workspace or /tmp paths are assumed
- * already container-local (e.g. a result_ref from a prior run_pandas).
- */
+function execSucceeded(r: any) {
+  if (typeof r?.success === 'boolean') return r.success;
+  if (typeof r?.exitCode === 'number') return r.exitCode === 0;
+  if (typeof r?.code === 'number') return r.code === 0;
+  // @cloudflare/sandbox 0.9.x can omit success/exitCode for successful execs.
+  return !r?.stderr;
+}
+
 async function stageInput(env: ContainerRunnerEnv, sessionId: string, dataRef: string): Promise<string> {
   if (dataRef.startsWith('/workspace/') || dataRef.startsWith('/tmp/')) return dataRef;
   if (/^https?:\/\//i.test(dataRef)) {
@@ -49,7 +46,6 @@ async function stageInput(env: ContainerRunnerEnv, sessionId: string, dataRef: s
   throw new Error('container backend cannot read local path "' + dataRef + '" — pass an http(s) URL or R2 object URL.');
 }
 
-/** Run a pandas snippet in the container. INPUT_PATH/RESULT_PATH are set. */
 export async function runPandasContainer(
   env: ContainerRunnerEnv,
   sessionId: string,
@@ -64,15 +60,20 @@ export async function runPandasContainer(
   const wrapped = 'import os\nos.environ["INPUT_PATH"] = ' + JSON.stringify(stagedInput) + '\nos.environ["RESULT_PATH"] = ' + JSON.stringify(resultPath) + '\nos.environ["OUTPUT_PATH"] = os.environ["RESULT_PATH"]\n' + code;
   await stub.writeFile(scriptPath, wrapped);
   const r: any = await stub.exec('python ' + scriptPath, { timeout: opts.timeoutMs ?? 30_000 });
-  const ok = r.success ?? ((r.exitCode ?? 0) === 0);
+  const ok = execSucceeded(r);
   let resultPathOut: string | undefined;
   if (ok) {
     try { await stub.readFile(resultPath); resultPathOut = resultPath; } catch { resultPathOut = undefined; }
   }
-  return { ok, stdout: (r.stdout ?? '').slice(-4000), stderr: (r.stderr ?? '').slice(-4000), exitCode: r.exitCode ?? (ok ? 0 : 1), resultPath: resultPathOut };
+  return {
+    ok,
+    stdout: (r.stdout ?? '').slice(-4000),
+    stderr: (r.stderr ?? '').slice(-4000),
+    exitCode: r.exitCode ?? r.code ?? (ok ? 0 : 1),
+    resultPath: resultPathOut,
+  };
 }
 
-/** Run python that prints JSON; returns parsed json. dataRef (if any) is staged. */
 export async function runPythonJsonContainer<T = unknown>(
   env: ContainerRunnerEnv,
   sessionId: string,
@@ -89,20 +90,24 @@ export async function runPythonJsonContainer<T = unknown>(
   const wrapped = 'import os\n' + envLines + '\n' + code;
   await stub.writeFile(scriptPath, wrapped);
   const r: any = await stub.exec('python ' + scriptPath, { timeout: opts.timeoutMs ?? 30_000 });
-  const ok = r.success;
+  const ok = execSucceeded(r);
   const stdout = r.stdout ?? '';
-  const json = ok && stdout.trim() ? safeJson<T>(stdout) : undefined;
-  return { ok, json, stdout, stderr: r.stderr ?? '', exitCode: r.exitCode ?? (ok ? 0 : 1) };
+  const json = stdout.trim() ? safeJson<T>(stdout) : undefined;
+  return {
+    ok,
+    json,
+    stdout,
+    stderr: r.stderr ?? '',
+    exitCode: r.exitCode ?? r.code ?? (ok ? 0 : 1),
+  };
 }
 
-/** Read a file from the container FS as text (for previews). */
 export async function readCsvContainer(env: ContainerRunnerEnv, sessionId: string, path: string): Promise<string> {
   const stub = getStub(env, sessionId);
   const file: any = await stub.readFile(path);
   return typeof file === 'string' ? file : (file?.content ?? String(file));
 }
 
-/** Copy a staged result CSV to a durable output path inside the container. */
 export async function saveResultContainer(env: ContainerRunnerEnv, sessionId: string, src: string, dest: string): Promise<void> {
   const stub = getStub(env, sessionId);
   const content = await readCsvContainer(env, sessionId, src);
@@ -112,25 +117,15 @@ export async function saveResultContainer(env: ContainerRunnerEnv, sessionId: st
 }
 
 function sanitizeJsonText(value: string) {
-  // Python json.dumps can emit NaN/Infinity tokens; JSON.parse rejects them,
-  // and Flue rejects non-JSON tool outputs. Convert them to null before parse.
   return value
-    .replace(/-?Infinity/g, 'null')
-    .replace(/NaN/g, 'null');
+    .replace(/-?\bInfinity\b/g, 'null')
+    .replace(/\bNaN\b/g, 'null');
 }
 
 function tryParseJson<T>(value: string): T | undefined {
   const text = sanitizeJsonText(value.trim());
   if (!text) return undefined;
   try { return JSON.parse(text) as T; } catch { return undefined; }
-}
-
-function extractJsonObjectText(value: string): string | undefined {
-  const text = value.trim();
-  const first = text.indexOf('{');
-  const last = text.lastIndexOf('}');
-  if (first === -1 || last === -1 || last <= first) return undefined;
-  return text.slice(first, last + 1);
 }
 
 function safeJson<T>(s: string): T | undefined {
@@ -143,8 +138,10 @@ function safeJson<T>(s: string): T | undefined {
     const parsedLast = tryParseJson<T>(last);
     if (parsedLast !== undefined) return parsedLast;
   }
-  const embedded = extractJsonObjectText(t);
-  return embedded ? tryParseJson<T>(embedded) : undefined;
+  const first = t.indexOf('{');
+  const lastBrace = t.lastIndexOf('}');
+  if (first !== -1 && lastBrace > first) return tryParseJson<T>(t.slice(first, lastBrace + 1));
+  return undefined;
 }
 
 export { localReadCsv, localSaveResult, RUNNER_URL };
