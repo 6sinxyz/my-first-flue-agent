@@ -43,8 +43,8 @@ import * as handler_router_3 from "/Users/alexa/workspace/my-first-flue-agent/sr
 
 
 
-
-
+import * as userCloudflareModule from "/Users/alexa/workspace/my-first-flue-agent/src/cloudflare.ts";
+export * from "/Users/alexa/workspace/my-first-flue-agent/src/cloudflare.ts";
 
 // ─── Internal provider registrations ────────────────────────────────────────
 // User `app.ts` imports are hoisted above this body, so a user-supplied
@@ -138,7 +138,7 @@ const workflowIdentities = {
 
 };
 
-const userCloudflare = {};
+const userCloudflare = userCloudflareModule;
 const reservedCloudflareExportNames = new Set(["FlueCalculatorAgent","FlueDataCleanerAgent","FlueHelloWorldAgent","FlueRouterAgent","FlueRegistry"]);
 for (const name of Object.keys(userCloudflare)) {
   if (name === 'default') continue;

@@ -1,0 +1,34 @@
+// Phase 2 production config: enables the @cloudflare/sandbox container backend
+// for the data-cleaner agent. KEPT SEPARATE from wrangler.jsonc so that local
+// dev (flue run --target cloudflare, no Sandbox binding) keeps using the
+// pyrunner HTTP backend without requiring Docker / Containers.
+//
+// To deploy the container backend to prod:
+//   1. Start Docker locally.
+//   2. npx wrangler containers build sandbox --image my-first-flue-agent-sandbox
+//   3. npx wrangler containers push my-first-flue-agent-sandbox
+//   4. Deploy with this config merged in (or copy the containers + Sandbox
+//      binding below into wrangler.jsonc):
+//        npx wrangler deploy --config dist/my_first_flue_agent/wrangler.json
+//      (ensure dist wrangler.json includes the Sandbox DO binding + containers)
+//   5. Wait 2-3 min for container provisioning, then test data-cleaner.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "my-first-flue-agent",
+  "account_id": "e2d9809af7ce19ddf69f0ba687e678ac",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "ai": { "binding": "AI", "remote": true },
+  "containers": [
+    {
+      "name": "sandbox",
+      "image": "./sandbox/Dockerfile",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "Sandbox", "class_name": "Sandbox" }
+    ]
+  }
+}
