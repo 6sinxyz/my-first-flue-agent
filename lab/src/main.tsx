@@ -3,9 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Badge } from '@cloudflare/kumo/components/badge';
 import { Button } from '@cloudflare/kumo/components/button';
 import { CloudflareLogo } from '@cloudflare/kumo/components/cloudflare-logo';
-import { Empty } from '@cloudflare/kumo/components/empty';
 import { Input, Textarea } from '@cloudflare/kumo/components/input';
-import { Label } from '@cloudflare/kumo/components/label';
 import './kumo.css';
 import './styles.css';
 
@@ -240,7 +238,7 @@ function App() {
           <p className="hint">Uses <code>fetch()</code> + <code>ReadableStream</code>, not EventSource, so Authorization headers are sent.</p>
 
           <Field label="Base URL">
-            <Input value={baseUrl} onChange={(event) => setBaseUrl(event.currentTarget.value)} />
+            <Input className="mono-input" value={baseUrl} onChange={(event) => setBaseUrl(event.currentTarget.value)} />
           </Field>
           <Field label="Bearer token">
             <Input type="password" value={token} onChange={(event) => setToken(event.currentTarget.value)} placeholder="Paste FLUE_API_TOKEN" />
@@ -253,17 +251,18 @@ function App() {
               </select>
             </Field>
             <Field label="Instance ID">
-              <Input value={instanceId} onChange={(event) => setInstanceId(event.currentTarget.value)} />
+              <Input className="mono-input" value={instanceId} onChange={(event) => setInstanceId(event.currentTarget.value)} />
             </Field>
           </div>
 
           <Field label="Prompt">
-            <Textarea value={message} onChange={(event) => setMessage(event.currentTarget.value)} rows={7} />
+            <Textarea className="prompt-input" value={message} onChange={(event) => setMessage(event.currentTarget.value)} rows={9} />
           </Field>
 
+          <div className="presets-header">Quick presets</div>
           <div className="preset-grid" aria-label="Agent presets">
             {agents.map((item) => (
-              <Button key={item.name} type="button" variant={item.name === selectedPreset.name ? 'primary' : 'secondary'} size="sm" onClick={() => applyPreset(item.name)}>
+              <Button key={item.name} type="button" variant={item.name === selectedPreset.name ? 'primary' : 'outline'} size="xs" onClick={() => applyPreset(item.name)}>
                 {item.name}
               </Button>
             ))}
@@ -272,7 +271,7 @@ function App() {
           <div className="actions">
             <Button type="button" variant="primary" onClick={sendAndStream} disabled={running}>Send + stream</Button>
             <Button type="button" variant="secondary" onClick={waitResult} disabled={running}>Wait result</Button>
-            <Button type="button" variant="secondary-destructive" onClick={stop} disabled={!running}>Stop</Button>
+            {running ? <Button type="button" variant="destructive" onClick={stop}>Stop</Button> : null}
           </div>
         </section>
 
@@ -289,9 +288,9 @@ function App() {
           </div>
 
           <div className="events-block">
-            <Label>Raw stream events</Label>
+            <div className="field-label">Raw stream events</div>
             {events.length === 0 ? (
-              <Empty className="empty-box" title="No stream events yet" description="Start a stream to inspect event timing and payloads." />
+              <Placeholder title="No stream events yet" description="Start a stream to inspect event timing and payloads." />
             ) : (
               <div className="event-list">
                 {events.map((event, index) => (
@@ -312,7 +311,7 @@ function App() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="field">
-      <Label>{label}</Label>
+      <label className="field-label">{label}</label>
       {children}
     </div>
   );
@@ -321,8 +320,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function OutputBox({ title, value, empty }: { title: string; value: string; empty: string }) {
   return (
     <div className="output-box">
-      <Label>{title}</Label>
-      {value ? <pre>{value}</pre> : <Empty className="empty-box" title={title} description={empty} />}
+      <div className="field-label">{title}</div>
+      {value ? <pre>{value}</pre> : <Placeholder title={title} description={empty} />}
+    </div>
+  );
+}
+
+
+function Placeholder({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="placeholder">
+      <div className="placeholder-title">{title}</div>
+      <div className="placeholder-description">{description}</div>
     </div>
   );
 }
