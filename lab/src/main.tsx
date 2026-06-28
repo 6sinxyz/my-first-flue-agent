@@ -184,33 +184,51 @@ function App() {
       for (const line of lines) {
         if (line === '') {
           if (dataLines.length) {
-            handlePayload(eventName, dataLines.join('\n'));
+            const terminal = await handlePayload(eventName, dataLines.join('\n'));
             eventName = 'message';
             dataLines = [];
+            if (terminal) {
+              await reader.cancel().catch(() => undefined);
+              return;
+            }
           }
           continue;
         }
         if (line.startsWith('event:')) eventName = line.slice(6).trim();
         else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
-        else if (line.startsWith('{')) handlePayload('json-line', line);
+        else if (line.startsWith('{') || line.startsWith('[')) {
+          if (await handlePayload('json-line', line)) {
+            await reader.cancel().catch(() => undefined);
+            return;
+          }
+        }
       }
     }
-    if (dataLines.length) handlePayload(eventName, dataLines.join('\n'));
+    if (dataLines.length) await handlePayload(eventName, dataLines.join('\n'));
   }
 
-  function handlePayload(eventName: string, payload: string) {
-    if (!payload || payload === '[DONE]') return;
+  async function handlePayload(eventName: string, payload: string): Promise<boolean> {
+    if (!payload || payload === '[DONE]') return false;
     let parsed: unknown = payload;
     try {
       parsed = JSON.parse(payload);
     } catch {
       // Keep raw string payloads visible.
     }
-    log(eventName, parsed);
-    const text = extractText(parsed);
-    if (text) setAssistantText((prev) => prev + text);
-    const type = eventType(parsed, eventName);
-    if (type === 'idle' || type === 'submission_settled') setStatus(type);
+
+    const items = Array.isArray(parsed) ? parsed : [parsed];
+    let terminal = false;
+    for (const item of items) {
+      const type = eventType(item, eventName);
+      log(type, item);
+      const text = extractText(item);
+      if (text) setAssistantText((prev) => prev + text);
+      if (type === 'idle' || type === 'submission_settled') {
+        setStatus(type);
+        terminal = true;
+      }
+    }
+    return terminal;
   }
 
   function stop() {
@@ -376,19 +394,26 @@ function pretty(text: string) {
 }
 
 function eventType(value: unknown, fallback: string) {
-  return typeof value === 'object' && value !== null && 'type' in value ? String((value as { type?: unknown }).type) : fallback;
+  if (typeof value === 'object' && value !== null) {
+    if ('type' in value) return String((value as { type?: unknown }).type);
+    if ('streamNextOffset' in value) return 'control';
+  }
+  return fallback;
 }
 
 function extractText(value: unknown): string {
+  if (Array.isArray(value)) return value.map(extractText).join('');
   if (!value || typeof value !== 'object') return '';
   const record = value as Record<string, unknown>;
   const type = String(record.type ?? '');
-  if ((type.includes('text') || type.includes('delta')) && typeof record.text === 'string') return record.text;
-  if (typeof record.delta === 'string') return record.delta;
-  if (typeof record.content === 'string' && (type.includes('message') || type.includes('text'))) return record.content;
-  if (Array.isArray(record.content)) return record.content.map(extractText).join('');
-  const result = record.result;
-  if (result && typeof result === 'object' && 'text' in result && typeof (result as { text?: unknown }).text === 'string') return (result as { text: string }).text;
+
+  if (type === 'text_delta') {
+    if (typeof record.text === 'string') return record.text;
+    if (typeof record.delta === 'string') return record.delta;
+  }
+  if ((type === 'text' || type === 'message_text') && typeof record.text === 'string') return record.text;
+  // Streaming terminal events may include result.text; ignore it to avoid duplicating
+  // the text_delta chunks already rendered above. Wait-result responses do not use this helper.
   return '';
 }
 
