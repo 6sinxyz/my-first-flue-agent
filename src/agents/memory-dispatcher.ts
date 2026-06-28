@@ -16,7 +16,7 @@ export default defineAgent(({ id, env }: { id: string; env: any }) => {
   const codeModeSubagent = defineAgentProfile({
     name: 'code-mode',
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
-    instructions: 'Code Mode demo subagent. Use run_short_js for short deterministic arithmetic snippets and explain current Dynamic Worker limitations.',
+    instructions: 'Arithmetic evaluator subagent. Use run_short_js for short deterministic arithmetic expressions and be clear that it is not a general JavaScript runtime.',
     tools: makeCodeModeTools(),
   });
   const dataCleanerSubagent = defineAgentProfile({

@@ -6,7 +6,7 @@ See `docs/calling-flue.md` for raw HTTP, SDK, React, script, and production URL 
 
 ## Agents and workflow
 
-- `code-mode`: short deterministic JavaScript arithmetic execution. The installed Flue/Cloudflare runtime does not expose a Dynamic Worker code-mode API, so the demo uses a constrained arithmetic parser fallback and reports that limitation.
+- `code-mode`: deterministic arithmetic expression evaluation for short snippets. It intentionally supports arithmetic only (`+`, `-`, `*`, `/`, `%`, decimals, parentheses) and does not present itself as a general JavaScript runtime.
 - `workspace`: durable write/read/list/workspace_grep/diff/reset workspace. Files are keyed by the stable agent id and backed by `DemoJsonStore` in production, with an in-memory dev fallback.
 - `hybrid-data-cleaner`: Worker-side CSV inspect/validate/anomaly tools plus the existing pandas container tools for transforms. `benchmark_inspect` compares Worker inspect with `inspect_data`.
 - `repeatable-report`: Flue `defineWorkflow` equivalent for a repeatable deterministic workflow. `@cloudflare/dynamic-workflows` is not exposed by the installed packages.
@@ -153,7 +153,7 @@ curl -sS "$PROD_URL/agents/memory-dispatcher/alice?wait=result" \
 
 ## Cloudflare setup gaps
 
-- Dynamic Worker/code mode: no direct API is exported by `@flue/runtime@1.0.0-beta.6` or current project dependencies. The fallback supports arithmetic expressions only and rejects general JavaScript, imports, network calls, timers, and nondeterministic APIs.
+- Code execution: `code-mode` is intentionally scoped to deterministic arithmetic expression evaluation. It rejects general JavaScript, imports, network calls, timers, and nondeterministic APIs.
 - Dynamic workflows: `@cloudflare/dynamic-workflows` is not installed or exposed. `repeatable-report` uses Flue workflow runs, result waiting, and durable event streams.
 - Browser Rendering: add a Cloudflare Browser binding and browser rendering package before replacing `web-extractor`'s fetch fallback.
 - Email Routing: configure Cloudflare Email Routing to call an `email()` handler for live mail. The current `email-processor` is a test-mode JSON/prompt demo.
