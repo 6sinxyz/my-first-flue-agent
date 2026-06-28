@@ -9,6 +9,15 @@ import { defineTool } from '@flue/runtime';
 import * as v from 'valibot';
 import { createRunner, type PythonRunner } from './runner.js';
 
+
+function safeOutputName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error('output_name must not be empty');
+  if (trimmed.includes('/') || trimmed.includes('\\') || trimmed.includes('..')) throw new Error('output_name must be a simple file name, not a path');
+  if (!/^[A-Za-z0-9_.-]+$/.test(trimmed)) throw new Error('output_name may contain only letters, numbers, dot, underscore, and dash');
+  return trimmed.toLowerCase().endsWith('.csv') ? trimmed : `${trimmed}.csv`;
+}
+
 export function makeDataCleanerTools(env: any, sessionId: string) {
   const r: PythonRunner = createRunner(env, sessionId);
 
@@ -63,13 +72,15 @@ export function makeDataCleanerTools(env: any, sessionId: string) {
         'expected = json.loads(os.environ["EXPECTED"])',
         'violations = []',
         'actual = {c: str(t) for c, t in df.dtypes.items()}',
+        'expected_names = [e["name"] for e in expected]',
         'for e in expected:',
         '    n, t = e["name"], e["type"]',
         '    if n not in df.columns: violations.append({"column": n, "issue": "missing column"})',
         '    elif t and t.lower() not in actual[n].lower(): violations.append({"column": n, "issue": "dtype " + actual[n] + " != " + t})',
-        'for c in df.columns:',
-        '    if c not in [e["name"] for e in expected]: violations.append({"column": c, "issue": "unexpected column"})',
-        'print(json.dumps({"valid": len(violations) == 0, "violations": violations}))',
+        'if expected:',
+        '    for c in df.columns:',
+        '        if c not in expected_names: violations.append({"column": c, "issue": "unexpected column"})',
+        'print(json.dumps({"valid": len(violations) == 0, "violations": violations, "actual_schema": actual}))',
       ].join('\n');
       const res = await r.runPythonJson(code, { env: { INPUT_PATH: input.result_ref, EXPECTED: expected } });
       if (!res.ok || !res.json) throw new Error('validate_schema failed: ' + (res.stderr || res.stdout));
@@ -99,8 +110,11 @@ export function makeDataCleanerTools(env: any, sessionId: string) {
         '        lo, hi = q1 - 1.5*iqr, q3 + 1.5*iqr; mask = (s2 < lo) | (s2 > hi); m = int(mask.sum())',
         '        if m > 0: out.append({"column": c, "type": "outlier", "count": m, "samples": [str(x) for x in s2[mask].head(3).tolist()]})',
         '    else:',
-        '        coerced = pd.to_numeric(s, errors="coerce"); bad = coerced.isna() & s.notna(); b = int(bad.sum())',
-        '        if b > 0: out.append({"column": c, "type": "dtype", "count": b, "samples": [str(x) for x in s[bad].head(3).tolist()]})',
+        '        coerced = pd.to_numeric(s, errors="coerce"); present = s.notna() & (s.astype(str).str.strip() != "")',
+        '        numeric = coerced.notna() & present; bad = coerced.isna() & present',
+        '        b = int(bad.sum()); numeric_count = int(numeric.sum()); present_count = int(present.sum())',
+        '        numeric_ratio = (numeric_count / present_count) if present_count else 0',
+        '        if numeric_count >= 2 and numeric_ratio >= 0.5 and b > 0: out.append({"column": c, "type": "mixed-numeric", "count": b, "samples": [str(x) for x in s[bad].head(3).tolist()]})',
         'd = int(df.duplicated().sum())',
         'if d > 0: out.append({"column": "(row)", "type": "duplicate", "count": d, "samples": [str(x) for x in df[df.duplicated()].head(3).index.tolist()]})',
         'print(json.dumps({"anomalies": out}))',
@@ -120,15 +134,19 @@ export function makeDataCleanerTools(env: any, sessionId: string) {
       anomaly_report: v.optional(v.array(v.object({ column: v.string(), type: v.string(), count: v.number(), samples: v.array(v.union([v.string(), v.null()])) }))),
     }),
     run: async ({ input }) => {
+      const outputName = safeOutputName(input.output_name);
       const outDir = (process.env.DC_OUT_DIR ?? '/tmp/dc-out').replace(/\/$/, '');
-      const outputPath = outDir + '/' + input.output_name;
+      const outputPath = outDir + '/' + outputName;
       await r.saveResult(input.result_ref, outputPath);
       const csv = await r.readCsv(outputPath);
       const lines = csv.trim().split('\n');
       const header = lines[0]?.split(',') ?? [];
       const preview = lines.slice(0, 6).map((l) => l.split(',')).map((row) => Object.fromEntries(header.map((h, i) => [h, row[i] ?? ''])));
-      const res = await r.runPythonJson<{ rows: number }>('import os, pandas as pd; print(pd.read_csv(os.environ["INPUT_PATH"]).shape[0])', { env: { INPUT_PATH: outputPath } });
-      return { output_path: outputPath, rows: res.json?.rows ?? Math.max(preview.length - 1, 0), preview, anomaly_report: input.anomaly_report ?? [] };
+      const res = await r.runPythonJson<{ rows: number }>(
+        'import os, json, pandas as pd; print(json.dumps({"rows": int(pd.read_csv(os.environ["INPUT_PATH"]).shape[0])}))',
+        { env: { INPUT_PATH: outputPath } },
+      );
+      return { output_path: outputPath, rows: res.json?.rows ?? Math.max(lines.length - 1, 0), preview, anomaly_report: input.anomaly_report ?? [] };
     },
   });
 

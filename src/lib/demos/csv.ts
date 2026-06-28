@@ -90,7 +90,7 @@ export async function loadTextRef(env: any, ref: string): Promise<{ text: string
     return { text: await res.text(), source: ref };
   }
   if (ref.startsWith('r2://')) {
-    const [, bucketName, ...keyParts] = ref.replace('r2://', '').split('/');
+    const [bucketName, ...keyParts] = ref.replace('r2://', '').split('/');
     const bucket = env?.[bucketName];
     const key = keyParts.join('/');
     if (!bucket?.get || !key) throw new Error(`R2 binding/key unavailable for ${ref}`);

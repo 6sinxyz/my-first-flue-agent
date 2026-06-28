@@ -11,6 +11,7 @@ import { readCsv as localReadCsv, saveResult as localSaveResult, RUNNER_URL } fr
 
 export interface ContainerRunnerEnv {
   Sandbox: any;
+  [binding: string]: any;
 }
 
 let sandboxCache: { id: string; stub: any } | null = null;
@@ -22,7 +23,19 @@ function getStub(env: ContainerRunnerEnv, id: string) {
   return stub;
 }
 
-const uid = () => Math.random().toString(36).slice(2, 10);
+let uidCounter = 0;
+
+function uid() {
+  uidCounter = (uidCounter + 1) % Number.MAX_SAFE_INTEGER;
+  const crypto = globalThis.crypto;
+  if (crypto?.getRandomValues) {
+    const bytes = new Uint8Array(6);
+    crypto.getRandomValues(bytes);
+    const random = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    return `${Date.now().toString(36)}-${uidCounter.toString(36)}-${random}`;
+  }
+  return `${Date.now().toString(36)}-${uidCounter.toString(36)}`;
+}
 
 function execSucceeded(r: any) {
   if (typeof r?.success === 'boolean') return r.success;
@@ -43,7 +56,20 @@ async function stageInput(env: ContainerRunnerEnv, sessionId: string, dataRef: s
     await stub.writeFile(path, content);
     return path;
   }
-  throw new Error('container backend cannot read local path "' + dataRef + '" — pass an http(s) URL or R2 object URL.');
+  if (dataRef.startsWith('r2://')) {
+    const [bucketName, ...keyParts] = dataRef.replace('r2://', '').split('/');
+    const key = keyParts.join('/');
+    const bucket = env?.[bucketName];
+    if (!bucket?.get || !key) throw new Error('R2 binding/key unavailable for ' + dataRef);
+    const object = await bucket.get(key);
+    if (!object) throw new Error('R2 object not found: ' + dataRef);
+    const content = await object.text();
+    const stub = getStub(env, sessionId);
+    const path = '/workspace/input-' + uid() + '.csv';
+    await stub.writeFile(path, content);
+    return path;
+  }
+  throw new Error('container backend cannot read local path "' + dataRef + '" — pass an http(s) URL, r2://BINDING/key.csv, or a staged /workspace path.');
 }
 
 export async function runPandasContainer(
@@ -83,7 +109,7 @@ export async function runPythonJsonContainer<T = unknown>(
   const stub = getStub(env, sessionId);
   const scriptPath = '/workspace/dc-' + uid() + '.py';
   const envVars: Record<string, string> = { ...opts.env };
-  if (envVars.INPUT_PATH && /^https?:\/\//i.test(envVars.INPUT_PATH)) {
+  if (envVars.INPUT_PATH && (/^https?:\/\//i.test(envVars.INPUT_PATH) || envVars.INPUT_PATH.startsWith('r2://'))) {
     envVars.INPUT_PATH = await stageInput(env, sessionId, envVars.INPUT_PATH);
   }
   const envLines = Object.entries(envVars).map(([k, v]) => 'os.environ[' + JSON.stringify(k) + '] = ' + JSON.stringify(v)).join('\n');

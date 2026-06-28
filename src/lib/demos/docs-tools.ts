@@ -44,17 +44,18 @@ function scoreDoc(doc: DocRecord, terms: string[]) {
 export function makeDocsTools(env: any, agentId: string) {
   const readCorpus = () => readJsonStore<DocRecord[]>(env, 'docs-rag', agentId, 'docs', []);
   const writeCorpus = (docs: DocRecord[]) => writeJsonStore(env, 'docs-rag', agentId, 'docs', docs);
+  const storeMode = () => env?.DEMO_JSON_STORE ? 'DemoJsonStore' : 'memory-dev';
 
   const ingestDoc = defineTool({
     name: 'ingest_doc',
-    description: 'Persist a document into this agent id docs corpus for later search. This demo stores docs in DemoJsonStore/SQLite-backed Durable Object.',
+    description: 'Persist a document into this agent id docs corpus for later search. The returned store_mode reports whether storage is Durable Object backed or memory-dev fallback.',
     input: v.object({ id: v.string(), title: v.string(), url: v.string(), text: v.string() }),
     run: async ({ input }) => {
       const docs = await readCorpus();
       const next = docs.filter((doc) => doc.id !== input.id);
       next.push({ id: input.id, title: input.title, url: input.url, text: input.text });
       await writeCorpus(next);
-      return { stored: true, id: input.id, corpus_size: next.length, store: 'DemoJsonStore' };
+      return { stored: true, id: input.id, corpus_size: next.length, store_mode: storeMode() };
     },
   });
 
@@ -86,7 +87,7 @@ export function makeDocsTools(env: any, agentId: string) {
       return {
         answer: matches.map(({ doc }) => `${doc.title}: ${doc.text}`).join('\n'),
         citations: matches.map(({ doc }) => ({ id: doc.id, title: doc.title, url: doc.url })),
-        corpus: { built_in: builtInDocs.length, ingested: ingested.length },
+        corpus: { built_in: builtInDocs.length, ingested: ingested.length, store_mode: storeMode() },
       };
     },
   });
