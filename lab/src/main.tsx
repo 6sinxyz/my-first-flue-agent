@@ -68,7 +68,7 @@ function App() {
 
   useEffect(() => {
     if (!running) return;
-    const timer = window.setInterval(() => setElapsed(Math.round(performance.now() - started)), 120);
+    const timer = window.setInterval(() => setElapsed(Math.round(performance.now() - (startedRef.current || started))), 120);
     return () => window.clearInterval(timer);
   }, [running, started]);
 
@@ -76,6 +76,9 @@ function App() {
   const usesProduction = baseUrl.trim().replace(/\/$/, '') === PROD_URL;
   const visibleEvents = events.slice(-80);
   const visibleEventOffset = events.length - visibleEvents.length;
+  const toolEvents = events.filter((event) => isToolEvent(event.type, event.payload));
+  const visibleToolEvents = toolEvents.slice(-24);
+  const visibleToolOffset = toolEvents.length - visibleToolEvents.length;
 
   function applyPreset(nextAgent: string) {
     const preset = agents.find((item) => item.name === nextAgent) ?? agents[0];
@@ -334,6 +337,7 @@ function App() {
               <Button type="button" variant="secondary" size="sm" disabled={submission === 'no submission'} onClick={() => copyValue('submission', submission)}>{copied === 'submission' ? 'Copied' : 'Copy ID'}</Button>
               <Button type="button" variant="secondary" size="sm" disabled={!receipt} onClick={() => copyValue('receipt', receipt)}>{copied === 'receipt' ? 'Copied' : 'Copy JSON'}</Button>
               <Button type="button" variant="secondary" size="sm" disabled={events.length === 0} onClick={() => copyValue('events', JSON.stringify(events, null, 2))}>{copied === 'events' ? 'Copied' : 'Copy events'}</Button>
+              <Button type="button" variant="secondary" size="sm" disabled={toolEvents.length === 0} onClick={() => copyValue('tools', JSON.stringify(toolEvents, null, 2))}>{copied === 'tools' ? 'Copied' : 'Copy tools'}</Button>
             </div>
           </div>
 
@@ -349,6 +353,10 @@ function App() {
             <div className="status-card metric-card">
               <span className="status-label">Events</span>
               <strong>{events.length}</strong>
+            </div>
+            <div className="status-card metric-card">
+              <span className="status-label">Tools</span>
+              <strong>{toolEvents.length}</strong>
             </div>
             <div className="status-card submission-card">
               <span className="status-label">Submission</span>
@@ -374,6 +382,29 @@ function App() {
             </div>
 
             <div className="raw-column">
+              <div className="tool-stream-card">
+                <div className="response-card-head">
+                  <span>Tool activity</span>
+                  <span className="event-count-pill">{toolEvents.length} tool events</span>
+                </div>
+                {toolEvents.length === 0 ? <Placeholder title="No tool calls yet" description="Tool calls will stream here as soon as the agent invokes them. Try workspace, docs-rag, or data-cleaner." /> : (
+                  <div className="tool-list">
+                    {visibleToolEvents.map((event, index) => (
+                      <article className={toolEventClass(event.type)} key={`${event.type}-${visibleToolOffset + index}`}>
+                        <div className="tool-meta">
+                          <span>#{visibleToolOffset + index + 1}</span>
+                          <span>{event.at} ms</span>
+                          <strong>{toolEventName(event.payload)}</strong>
+                          <Badge variant={event.type === 'tool_start' ? 'neutral' : 'green'}>{event.type === 'tool_start' ? 'running' : 'completed'}</Badge>
+                        </div>
+                        <code>{toolEventCallId(event.payload)}</code>
+                        <p>{toolEventSummary(event.payload)}</p>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="raw-card">
                 <div className="response-card-head">
                   <span>Live raw events</span>
@@ -423,6 +454,51 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant={isError ? 'red' : isActive ? 'green' : 'neutral'}><span className="status-dot" />{status}</Badge>;
 }
 
+
+
+function isToolEvent(type: string, payload: unknown) {
+  if (type === 'tool_start' || type === 'tool') return true;
+  if (!payload || typeof payload !== 'object') return false;
+  const record = payload as Record<string, unknown>;
+  return typeof record.toolName === 'string' || typeof record.toolCallId === 'string';
+}
+
+function toolEventName(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return 'tool';
+  const record = payload as Record<string, unknown>;
+  return String(record.toolName ?? record.name ?? 'tool').replace(/^functions\./, '');
+}
+
+function toolEventCallId(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return 'no call id';
+  const record = payload as Record<string, unknown>;
+  return String(record.toolCallId ?? record.callId ?? record.id ?? 'no call id');
+}
+
+function toolEventClass(type: string) {
+  return `tool-item ${type === 'tool_start' ? 'is-running' : 'is-complete'}`;
+}
+
+function toolEventSummary(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return 'Tool event received.';
+  const record = payload as Record<string, unknown>;
+  const result = record.result;
+  if (result && typeof result === 'object') {
+    const details = (result as { details?: unknown }).details;
+    if (details && typeof details === 'object' && 'output' in details) return compactJson((details as { output?: unknown }).output);
+    if ('content' in result) return compactJson((result as { content?: unknown }).content);
+  }
+  if (result !== undefined) return compactJson(result);
+  const args = record.args ?? record.arguments ?? record.input;
+  if (args !== undefined) return compactJson(args);
+  return 'Tool call started.';
+}
+
+function compactJson(value: unknown) {
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  if (!text) return 'No output.';
+  return text.length > 260 ? `${text.slice(0, 260)}…` : text;
+}
 
 function formatElapsed(ms: number) {
   if (!ms) return '0 ms';
