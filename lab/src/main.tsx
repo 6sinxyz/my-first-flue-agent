@@ -12,6 +12,8 @@ type AgentPreset = {
   message: string;
 };
 
+type OutputTab = 'response' | 'raw';
+
 type Receipt = {
   streamUrl?: string;
   offset?: string;
@@ -52,6 +54,7 @@ function App() {
   const [elapsed, setElapsed] = useState(0);
   const [submission, setSubmission] = useState('no submission');
   const [aborter, setAborter] = useState<AbortController | null>(null);
+  const [activeTab, setActiveTab] = useState<OutputTab>('response');
 
   useEffect(() => {
     window.localStorage.setItem('flue_lab_base_url', baseUrl.trim());
@@ -91,6 +94,7 @@ function App() {
     setEvents([]);
     setSubmission('no submission');
     setElapsed(0);
+    setActiveTab('response');
   }
 
   function begin() {
@@ -129,6 +133,7 @@ function App() {
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
       const json = JSON.parse(text) as Receipt;
       setAssistantText(json.result?.text ?? '');
+      setActiveTab('response');
       end(`done ${res.status}`);
     } catch (error) {
       if ((error as Error).name !== 'AbortError') fail(error);
@@ -151,6 +156,7 @@ function App() {
       if (!sendRes.ok) throw new Error(`HTTP ${sendRes.status}: ${sendText}`);
       const sent = JSON.parse(sendText) as Receipt;
       setSubmission(sent.submissionId || 'submitted');
+      setActiveTab('response');
       await streamSse(endpoint(`${agentPath}?offset=${encodeURIComponent(sent.offset || '-1')}&live=sse`), controller.signal);
       end('stream complete');
     } catch (error) {
@@ -223,35 +229,31 @@ function App() {
           <CloudflareLogo className="cf-logo" color="color" />
           <div>
             <h1>Flue Agent Streaming Lab</h1>
-            <p>Kumo-powered Cloudflare console for testing protected Flue agent streams.</p>
+            <p>Test protected Flue agent streams.</p>
           </div>
         </div>
-        <Badge variant="orange">Cloudflare Worker</Badge>
       </header>
 
       <main className="lab-grid">
         <section className="panel controls-panel">
-          <div className="panel-heading">
-            <Badge variant="orange">Kumo UI</Badge>
-            <Badge variant="blue">fetch streaming + Bearer auth</Badge>
-          </div>
-          <p className="hint">Uses <code>fetch()</code> + <code>ReadableStream</code>, not EventSource, so Authorization headers are sent.</p>
+          <details className="connection-settings">
+            <summary>Connection & advanced settings</summary>
+            <Field label="Base URL">
+              <Input className="mono-input" value={baseUrl} onChange={(event) => setBaseUrl(event.currentTarget.value)} />
+            </Field>
+            <Field label="Bearer token">
+              <Input type="password" value={token} onChange={(event) => setToken(event.currentTarget.value)} placeholder="Paste FLUE_API_TOKEN" />
+            </Field>
+            <Field label="Instance ID">
+              <Input className="mono-input" value={instanceId} onChange={(event) => setInstanceId(event.currentTarget.value)} />
+            </Field>
+          </details>
 
-          <Field label="Base URL">
-            <Input className="mono-input" value={baseUrl} onChange={(event) => setBaseUrl(event.currentTarget.value)} />
-          </Field>
-          <Field label="Bearer token">
-            <Input type="password" value={token} onChange={(event) => setToken(event.currentTarget.value)} placeholder="Paste FLUE_API_TOKEN" />
-          </Field>
-
-          <div className="two-col">
+          <div className="primary-fields">
             <Field label="Agent">
               <select className="native-select" value={agent} onChange={(event) => applyPreset(event.currentTarget.value)}>
                 {agents.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
               </select>
-            </Field>
-            <Field label="Instance ID">
-              <Input className="mono-input" value={instanceId} onChange={(event) => setInstanceId(event.currentTarget.value)} />
             </Field>
           </div>
 
@@ -276,30 +278,40 @@ function App() {
         </section>
 
         <section className="panel output-panel">
-          <div className="status-row">
-            <StatusBadge status={status} />
-            <Badge><span className="metric">{elapsed} ms</span></Badge>
-            <Badge>{submission}</Badge>
+          <div className="status-line">
+            <span><StatusBadge status={status} /></span>
+            <span className="metric">{elapsed} ms</span>
+            <span className="submission-id">{submission}</span>
           </div>
 
-          <div className="output-grid">
-            <OutputBox title="Assistant text" value={assistantText} empty="Assistant text will appear here as stream events arrive." />
-            <OutputBox title="Receipt / result JSON" value={receipt} empty="Submission receipt or wait=result JSON will appear here." />
+          <div className="tabs" role="tablist" aria-label="Output views">
+            <button type="button" role="tab" aria-selected={activeTab === 'response'} className={activeTab === 'response' ? 'active' : ''} onClick={() => setActiveTab('response')}>Response</button>
+            <button type="button" role="tab" aria-selected={activeTab === 'raw'} className={activeTab === 'raw' ? 'active' : ''} onClick={() => setActiveTab('raw')}>Raw events</button>
           </div>
 
-          <div className="events-block">
-            <div className="field-label">Raw stream events</div>
-            {events.length === 0 ? (
-              <Placeholder title="No stream events yet" description="Start a stream to inspect event timing and payloads." />
-            ) : (
-              <div className="event-list">
-                {events.map((event, index) => (
-                  <article className="event-card" key={`${event.type}-${index}`}>
-                    <div className="event-meta"><span>#{index + 1}</span><span>{event.at} ms</span><strong>{event.type}</strong></div>
-                    <pre>{typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload, null, 2)}</pre>
-                  </article>
-                ))}
-              </div>
+          <div className="tab-panel">
+            {activeTab === 'response' && (
+              <>
+                {assistantText ? <pre className="output-pre assistant-output">{assistantText}</pre> : <Placeholder title="Waiting for response" description="Start a stream or wait for a result." />}
+                {receipt ? (
+                  <details className="receipt-details">
+                    <summary>Receipt / result JSON</summary>
+                    <pre className="receipt-pre">{receipt}</pre>
+                  </details>
+                ) : null}
+              </>
+            )}
+            {activeTab === 'raw' && (
+              events.length === 0 ? <Placeholder title="No stream events yet" description="Raw SSE events will appear here." /> : (
+                <div className="event-list">
+                  {events.map((event, index) => (
+                    <article className="event-card" key={`${event.type}-${index}`}>
+                      <div className="event-meta"><span>#{index + 1}</span><span>{event.at} ms</span><strong>{event.type}</strong></div>
+                      <pre>{typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload, null, 2)}</pre>
+                    </article>
+                  ))}
+                </div>
+              )
             )}
           </div>
         </section>
