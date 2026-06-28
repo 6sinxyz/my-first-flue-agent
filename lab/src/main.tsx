@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Badge } from '@cloudflare/kumo/components/badge';
 import { Button } from '@cloudflare/kumo/components/button';
@@ -12,7 +12,6 @@ type AgentPreset = {
   message: string;
 };
 
-type OutputTab = 'response' | 'raw';
 
 type Receipt = {
   streamUrl?: string;
@@ -56,7 +55,8 @@ function App() {
   const [elapsed, setElapsed] = useState(0);
   const [submission, setSubmission] = useState('no submission');
   const [aborter, setAborter] = useState<AbortController | null>(null);
-  const [activeTab, setActiveTab] = useState<OutputTab>('response');
+  const [copied, setCopied] = useState('');
+  const startedRef = useRef(0);
 
   useEffect(() => {
     window.localStorage.setItem('flue_lab_base_url', baseUrl.trim());
@@ -74,6 +74,8 @@ function App() {
 
   const selectedPreset = useMemo(() => agents.find((item) => item.name === agent) ?? agents[0], [agent]);
   const usesProduction = baseUrl.trim().replace(/\/$/, '') === PROD_URL;
+  const visibleEvents = events.slice(-80);
+  const visibleEventOffset = events.length - visibleEvents.length;
 
   function applyPreset(nextAgent: string) {
     const preset = agents.find((item) => item.name === nextAgent) ?? agents[0];
@@ -97,13 +99,14 @@ function App() {
     setEvents([]);
     setSubmission('no submission');
     setElapsed(0);
-    setActiveTab('response');
   }
 
   function begin() {
     const controller = new AbortController();
     setAborter(controller);
-    setStarted(performance.now());
+    const now = performance.now();
+    startedRef.current = now;
+    setStarted(now);
     setElapsed(0);
     setRunning(true);
     setStatus('running');
@@ -114,11 +117,20 @@ function App() {
     setRunning(false);
     setStatus(nextStatus);
     setAborter(null);
-    setElapsed(Math.round(performance.now() - started));
+    const origin = startedRef.current || started;
+    setElapsed(Math.round(performance.now() - origin));
   }
 
   function log(type: string, payload: unknown) {
-    setEvents((prev) => [...prev, { at: Math.round(performance.now() - (started || performance.now())), type, payload }]);
+    const origin = startedRef.current || started || performance.now();
+    setEvents((prev) => [...prev, { at: Math.round(performance.now() - origin), type, payload }]);
+  }
+
+  async function copyValue(label: string, value: string) {
+    if (!value) return;
+    await navigator.clipboard.writeText(value);
+    setCopied(label);
+    window.setTimeout(() => setCopied((current) => current === label ? '' : current), 1600);
   }
 
   async function waitResult() {
@@ -136,8 +148,7 @@ function App() {
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
       const json = JSON.parse(text) as Receipt;
       setAssistantText(json.result?.text ?? '');
-      setActiveTab('response');
-      end(`done ${res.status}`);
+        end(`done ${res.status}`);
     } catch (error) {
       if ((error as Error).name !== 'AbortError') fail(error);
     }
@@ -159,8 +170,7 @@ function App() {
       if (!sendRes.ok) throw new Error(`HTTP ${sendRes.status}: ${sendText}`);
       const sent = JSON.parse(sendText) as Receipt;
       setSubmission(sent.submissionId || 'submitted');
-      setActiveTab('response');
-      await streamSse(endpoint(`${agentPath}?offset=${encodeURIComponent(sent.offset || '-1')}&live=sse`), controller.signal);
+        await streamSse(endpoint(`${agentPath}?offset=${encodeURIComponent(sent.offset || '-1')}&live=sse`), controller.signal);
       end('stream complete');
     } catch (error) {
       if ((error as Error).name !== 'AbortError') fail(error);
@@ -288,62 +298,99 @@ function App() {
             </Field>
           </div>
 
-          <Field label="Prompt">
+          <div className="prompt-block">
+            <div className="prompt-head">
+              <div>
+                <div className="field-label">Prompt</div>
+                <p className="field-hint">Pick a preset, then edit the instruction before streaming.</p>
+              </div>
+              <span className="selected-agent">{selectedPreset.name}</span>
+            </div>
+            <div className="preset-strip" aria-label="Agent presets">
+              {agents.map((item) => (
+                <Button key={item.name} type="button" variant={item.name === selectedPreset.name ? 'primary' : 'outline'} size="xs" onClick={() => applyPreset(item.name)}>
+                  {item.name}
+                </Button>
+              ))}
+            </div>
             <Textarea className="prompt-input" value={message} onChange={(event) => setMessage(event.currentTarget.value)} rows={9} />
-          </Field>
-
-          <div className="presets-header">Quick presets</div>
-          <div className="preset-grid" aria-label="Agent presets">
-            {agents.map((item) => (
-              <Button key={item.name} type="button" variant={item.name === selectedPreset.name ? 'primary' : 'outline'} size="xs" onClick={() => applyPreset(item.name)}>
-                {item.name}
-              </Button>
-            ))}
           </div>
 
           <div className="actions">
             <Button type="button" variant="primary" onClick={sendAndStream} disabled={running}>Send + stream</Button>
-            <Button type="button" variant="secondary" onClick={waitResult} disabled={running}>Wait result</Button>
+            <Button type="button" variant="secondary" onClick={waitResult} disabled={running}>Send + wait</Button>
             {running ? <Button type="button" variant="destructive" onClick={stop}>Stop</Button> : null}
           </div>
         </section>
 
         <section className="panel output-panel">
-          <div className="status-line">
-            <span><StatusBadge status={status} /></span>
-            <span className="metric">{elapsed} ms</span>
-            <span className="submission-id">{submission}</span>
+          <div className="output-head">
+            <div>
+              <div className="eyebrow">Output</div>
+              <h2>Streaming response</h2>
+            </div>
+            <div className="output-actions">
+              <Button type="button" variant="secondary" size="sm" disabled={!assistantText} onClick={() => copyValue('response', assistantText)}>{copied === 'response' ? 'Copied' : 'Copy response'}</Button>
+              <Button type="button" variant="secondary" size="sm" disabled={submission === 'no submission'} onClick={() => copyValue('submission', submission)}>{copied === 'submission' ? 'Copied' : 'Copy ID'}</Button>
+              <Button type="button" variant="secondary" size="sm" disabled={!receipt} onClick={() => copyValue('receipt', receipt)}>{copied === 'receipt' ? 'Copied' : 'Copy JSON'}</Button>
+              <Button type="button" variant="secondary" size="sm" disabled={events.length === 0} onClick={() => copyValue('events', JSON.stringify(events, null, 2))}>{copied === 'events' ? 'Copied' : 'Copy events'}</Button>
+            </div>
           </div>
 
-          <div className="tabs" role="tablist" aria-label="Output views">
-            <button type="button" role="tab" aria-selected={activeTab === 'response'} className={activeTab === 'response' ? 'active' : ''} onClick={() => setActiveTab('response')}>Response</button>
-            <button type="button" role="tab" aria-selected={activeTab === 'raw'} className={activeTab === 'raw' ? 'active' : ''} onClick={() => setActiveTab('raw')}>Raw events</button>
+          <div className="status-grid" aria-label="Run status">
+            <div className="status-card status-card-primary">
+              <span className="status-label">Status</span>
+              <StatusBadge status={status} />
+            </div>
+            <div className={elapsed > 30000 ? 'status-card metric-card slow' : 'status-card metric-card'}>
+              <span className="status-label">Elapsed</span>
+              <strong>{formatElapsed(elapsed)}</strong>
+            </div>
+            <div className="status-card metric-card">
+              <span className="status-label">Events</span>
+              <strong>{events.length}</strong>
+            </div>
+            <div className="status-card submission-card">
+              <span className="status-label">Submission</span>
+              <code title={submission}>{submission}</code>
+            </div>
           </div>
 
-          <div className="tab-panel">
-            {activeTab === 'response' && (
-              <>
-                {assistantText ? <pre className="output-pre assistant-output">{assistantText}</pre> : <Placeholder title="Waiting for response" description="Start a stream or wait for a result." />}
-                {receipt ? (
-                  <details className="receipt-details">
-                    <summary>Receipt / result JSON</summary>
-                    <pre className="receipt-pre">{receipt}</pre>
-                  </details>
-                ) : null}
-              </>
-            )}
-            {activeTab === 'raw' && (
-              events.length === 0 ? <Placeholder title="No stream events yet" description="Raw SSE events will appear here." /> : (
-                <div className="event-list">
-                  {events.map((event, index) => (
-                    <article className="event-card" key={`${event.type}-${index}`}>
-                      <div className="event-meta"><span>#{index + 1}</span><span>{event.at} ms</span><strong>{event.type}</strong></div>
-                      <pre>{typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload, null, 2)}</pre>
-                    </article>
-                  ))}
+          <div className="live-output-grid">
+            <div className="response-column">
+              <div className="response-card">
+                <div className="response-card-head">
+                  <span>Assistant output</span>
+                  {running ? <span className="streaming-indicator">Streaming…</span> : null}
                 </div>
-              )
-            )}
+                {assistantText ? <pre className="output-pre assistant-output">{assistantText}</pre> : <Placeholder title="Waiting for response" description="Start a stream or wait for a result." />}
+              </div>
+              {receipt ? (
+                <details className="receipt-details">
+                  <summary><span>Receipt / result JSON</span><span>Inspect request receipt</span></summary>
+                  <pre className="receipt-pre">{receipt}</pre>
+                </details>
+              ) : null}
+            </div>
+
+            <div className="raw-column">
+              <div className="raw-card">
+                <div className="response-card-head">
+                  <span>Live raw events</span>
+                  <span className="event-count-pill">{events.length} events · latest {visibleEvents.length}</span>
+                </div>
+                {events.length === 0 ? <Placeholder title="No stream events yet" description="Raw SSE events will appear here as the response streams." /> : (
+                  <div className="event-list">
+                    {visibleEvents.map((event, index) => (
+                      <article className="event-card" key={`${event.type}-${visibleEventOffset + index}`}>
+                        <div className="event-meta"><span>#{visibleEventOffset + index + 1}</span><span>{event.at} ms</span><strong>{event.type}</strong></div>
+                        <pre>{typeof event.payload === 'string' ? event.payload : JSON.stringify(event.payload, null, 2)}</pre>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </section>
       </main>
@@ -356,15 +403,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="field">
       <label className="field-label">{label}</label>
       {children}
-    </div>
-  );
-}
-
-function OutputBox({ title, value, empty }: { title: string; value: string; empty: string }) {
-  return (
-    <div className="output-box">
-      <div className="field-label">{title}</div>
-      {value ? <pre>{value}</pre> : <Placeholder title={title} description={empty} />}
     </div>
   );
 }
@@ -383,6 +421,13 @@ function StatusBadge({ status }: { status: string }) {
   const isError = status === 'error';
   const isActive = status === 'running' || status.includes('done') || status.includes('complete');
   return <Badge variant={isError ? 'red' : isActive ? 'green' : 'neutral'}><span className="status-dot" />{status}</Badge>;
+}
+
+
+function formatElapsed(ms: number) {
+  if (!ms) return '0 ms';
+  if (ms < 1000) return `${ms} ms`;
+  return `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)} s`;
 }
 
 function pretty(text: string) {
