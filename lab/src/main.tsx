@@ -21,6 +21,8 @@ type Receipt = {
   result?: { text?: string };
 };
 
+const PROD_URL = 'https://my-first-flue-agent.thecatcner.workers.dev';
+
 const agents: AgentPreset[] = [
   { name: 'hello-world', message: 'Say hello and include the current agent name.' },
   { name: 'calculator', message: 'Compute 123 * 45 + 678 and explain briefly.' },
@@ -40,7 +42,7 @@ function stored(key: string, fallback: string) {
 }
 
 function App() {
-  const [baseUrl, setBaseUrl] = useState(() => stored('flue_lab_base_url', window.location.origin));
+  const [baseUrl, setBaseUrl] = useState(() => stored('flue_lab_base_url', PROD_URL));
   const [token, setToken] = useState(() => stored('flue_lab_token', ''));
   const [agent, setAgent] = useState(agents[0].name);
   const [instanceId, setInstanceId] = useState(() => `lab-${Math.floor(Date.now() / 1000)}`);
@@ -71,6 +73,7 @@ function App() {
   }, [running, started]);
 
   const selectedPreset = useMemo(() => agents.find((item) => item.name === agent) ?? agents[0], [agent]);
+  const usesProduction = baseUrl.trim().replace(/\/$/, '') === PROD_URL;
 
   function applyPreset(nextAgent: string) {
     const preset = agents.find((item) => item.name === nextAgent) ?? agents[0];
@@ -239,7 +242,10 @@ function App() {
           <details className="connection-settings">
             <summary>Connection & advanced settings</summary>
             <Field label="Base URL">
-              <Input className="mono-input" value={baseUrl} onChange={(event) => setBaseUrl(event.currentTarget.value)} />
+              <div className="base-url-row">
+                <Input className="mono-input" value={baseUrl} onChange={(event) => setBaseUrl(event.currentTarget.value)} />
+                <Button type="button" variant="secondary" size="sm" onClick={() => setBaseUrl(PROD_URL)}>Use production</Button>
+              </div>
             </Field>
             <Field label="Bearer token">
               <Input type="password" value={token} onChange={(event) => setToken(event.currentTarget.value)} placeholder="Paste FLUE_API_TOKEN" />
@@ -248,6 +254,13 @@ function App() {
               <Input className="mono-input" value={instanceId} onChange={(event) => setInstanceId(event.currentTarget.value)} />
             </Field>
           </details>
+
+          {!usesProduction ? (
+            <div className="preview-warning">
+              <span>Remote preview is for the UI only. Agent calls should target production.</span>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setBaseUrl(PROD_URL)}>Use production</Button>
+            </div>
+          ) : null}
 
           <div className="primary-fields">
             <Field label="Agent">

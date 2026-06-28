@@ -23,9 +23,13 @@ p { margin: 0; }
 .field { margin-block-start: .875rem; }
 .connection-settings .field:first-of-type { margin-block-start: .75rem; }
 .primary-fields { margin-block-start: .875rem; }
+.preview-warning { margin-block-start: .875rem; display: flex; align-items: center; justify-content: space-between; gap: .75rem; border: 1px solid color-mix(in srgb, #f6821f 34%, var(--color-kumo-line, #d8d8d3)); border-radius: .75rem; background: color-mix(in srgb, #f6821f 8%, var(--color-kumo-base, white)); padding: .625rem .75rem; color: var(--text-color-kumo-subtle, #666); font-size: .82rem; }
+.preview-warning button { white-space: nowrap; }
 .field-label, .presets-header { display: block; margin: 0 0 .35rem; color: var(--text-color-kumo-subtle, #666); font-size: .82rem; font-weight: 650; line-height: 1.3; }
 .presets-header { margin-block-start: .75rem; }
 .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .75rem; align-items: end; }
+.base-url-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
+.base-url-row button { white-space: nowrap; }
 .native-select { height: 2.25rem; width: 100%; border: 1px solid var(--color-kumo-line, #d8d8d3); border-radius: .5rem; background: var(--color-kumo-base, white); color: var(--text-color-kumo-default, #171717); padding: 0 .75rem; font: inherit; }
 .mono-input input, .mono-input { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .8rem; }
 textarea.prompt-input, .prompt-input textarea { min-height: 8rem !important; line-height: 1.5; }
