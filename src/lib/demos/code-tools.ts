@@ -79,22 +79,23 @@ function safeEvaluateExpression(source: string) {
   const expression = trimmed.replace(/;$/, '');
   if (!allowed.test(expression)) throw new Error('safe fallback only supports numeric arithmetic expressions');
   try {
-    return { value: new Parser(expression).parse(), mode: 'safe-arithmetic-parser' };
+    return { value: new Parser(expression).parse(), mode: 'deterministic-arithmetic', backend: 'worker-parser' };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error), mode: 'safe-arithmetic-parser' };
+    return { error: error instanceof Error ? error.message : String(error), mode: 'deterministic-arithmetic', backend: 'worker-parser' };
   }
 }
 
 export function makeCodeModeTools() {
   const runShortJs = defineTool({
     name: 'run_short_js',
-    description: 'Run a short deterministic JavaScript arithmetic expression. Cloudflare Dynamic Worker APIs are not exposed in this runtime, so this uses a constrained parser fallback and rejects general JavaScript.',
+    description: 'Evaluate a short deterministic arithmetic expression with +, -, *, /, %, decimals, and parentheses. This is not a general JavaScript runtime.',
     input: v.object({ source: v.string() }),
     run: ({ input }) => {
       const result = safeEvaluateExpression(input.source);
       return {
         ...result,
-        limitation: '@flue/runtime 1.0.0-beta.6 does not expose a Dynamic Worker/code-mode API. This demo uses a constrained expression fallback for short deterministic snippets.',
+        capability: 'arithmetic-only',
+        supports: ['+', '-', '*', '/', '%', 'parentheses', 'decimals'],
       } as unknown as JsonValue;
     },
   });

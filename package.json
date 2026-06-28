@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "flue dev --target cloudflare",
-    "build": "flue build --target cloudflare",
+    "build": "pnpm run build:lab && flue build --target cloudflare",
     "run:hello": "flue run --target cloudflare hello-world --input '{\"message\":\"hello\"}'",
     "run:code-mode": "flue run --target cloudflare code-mode --input '{\"message\":\"run 2 + 3 * 4\"}'",
     "run:workspace": "flue run --target cloudflare workspace --id demo-workspace --input '{\"message\":\"write notes/todo.txt with two todo items, then read it back\"}'",
@@ -14,22 +14,34 @@
     "run:docs-rag": "flue run --target cloudflare docs-rag --input '{\"message\":\"How do I wait for an agent result over HTTP?\"}'",
     "deploy:dry": "wrangler deploy --dry-run --config dist/my_first_flue_agent/wrangler.json",
     "deploy": "wrangler deploy --config dist/my_first_flue_agent/wrangler.json",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && pnpm run typecheck:lab",
+    "build:lab": "vite build --config lab/vite.config.ts && node scripts/generate-lab-html.mjs",
+    "typecheck:lab": "tsc --noEmit -p lab/tsconfig.json"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@cloudflare/kumo": "^2.6.0",
     "@cloudflare/sandbox": "0.9.1",
-    "@flue/sdk": "1.0.0-beta.6",
     "@flue/runtime": "1.0.0-beta.6",
+    "@flue/sdk": "1.0.0-beta.6",
+    "@phosphor-icons/react": "^2.1.10",
     "agents": "^0.14.5",
     "hono": "4.12.27",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "valibot": "^1.4.1"
   },
   "devDependencies": {
     "@flue/cli": "1.0.0-beta.6",
+    "@tailwindcss/vite": "^4.3.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "tailwindcss": "^4.3.1",
     "typescript": "^6.0.3",
+    "vite": "^8.1.0",
     "wrangler": "^4.105.0"
   }
 }
