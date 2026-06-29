@@ -34,7 +34,7 @@ const agents: AgentPreset[] = [
   { name: 'workspace', message: 'Reset workspace, write notes/lab.txt containing streaming lab ok, then read it back.' },
   { name: 'docs-rag', message: 'Reset docs. Ingest a document titled LabDoc with source lab://doc and text: Flue streams are read with offset and live=sse. Then search for streams and answer with a citation.' },
   { name: 'web-extractor', message: 'Extract https://example.com and summarize the title plus one useful link.' },
-  { name: 'email-processor', message: 'Process this email payload: from ops@example.com, subject CSV, text https://example.com/customers.csv' },
+  { name: 'email-processor', message: 'Process this test email payload: from ops@example.com, subject CSV attachment, text Please inspect the attached CSV, attachments: [{ filename: customers.csv, content_type: text/csv, content: name,email\nAda,ada@example.com\nBob,bob@example.com }]。Return detected attachments and the data-cleaner handoff prompt.' },
   { name: 'memory-dispatcher', message: 'Remember that I prefer concise answers, then dispatch this: compute 19 * 6.' },
   { name: 'hybrid-data-cleaner', message: 'Use lightweight inspect on inline CSV: name,age\nA,10\nB, and summarize rows and missing values.' },
   { name: 'data-cleaner', message: 'Inspect CSV at https://raw.githubusercontent.com/6sinxyz/my-first-flue-agent/main/tests/fixtures/dirty_customers.csv and summarize quality issues.' },
