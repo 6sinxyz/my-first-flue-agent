@@ -76,5 +76,9 @@
         "class_name": "DemoJsonStore"
       }
     ]
+  },
+  "browser": {
+    "binding": "BROWSER",
+    "remote": true
   }
 }

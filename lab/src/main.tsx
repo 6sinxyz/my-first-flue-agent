@@ -12,13 +12,18 @@ type AgentPreset = {
   message: string;
 };
 
-
 type Receipt = {
   streamUrl?: string;
   offset?: string;
   submissionId?: string;
   result?: { text?: string };
 };
+
+type RawEvent = { at: number; type: string; payload: unknown };
+type TranscriptItem =
+  | { id: string; kind: 'user'; agent: string; text: string; at: number }
+  | { id: string; kind: 'assistant'; text: string; status: 'streaming' | 'complete' | 'error' | 'aborted'; at: number }
+  | { id: string; kind: 'tool'; type: string; payload: unknown; at: number };
 
 const PROD_URL = 'https://my-first-flue-agent.thecatcner.workers.dev';
 
@@ -31,7 +36,7 @@ const agents: AgentPreset[] = [
   { name: 'web-extractor', message: 'Extract https://example.com and summarize the title plus one useful link.' },
   { name: 'email-processor', message: 'Process this email payload: from ops@example.com, subject CSV, text https://example.com/customers.csv' },
   { name: 'memory-dispatcher', message: 'Remember that I prefer concise answers, then dispatch this: compute 19 * 6.' },
-  { name: 'hybrid-data-cleaner', message: 'Use lightweight inspect on inline CSV: name,age\\nA,10\\nB, and summarize rows and missing values.' },
+  { name: 'hybrid-data-cleaner', message: 'Use lightweight inspect on inline CSV: name,age\nA,10\nB, and summarize rows and missing values.' },
   { name: 'data-cleaner', message: 'Inspect CSV at https://raw.githubusercontent.com/6sinxyz/my-first-flue-agent/main/tests/fixtures/dirty_customers.csv and summarize quality issues.' },
 ];
 
@@ -46,17 +51,18 @@ function App() {
   const [agent, setAgent] = useState(agents[0].name);
   const [instanceId, setInstanceId] = useState(() => `lab-${Math.floor(Date.now() / 1000)}`);
   const [message, setMessage] = useState(agents[0].message);
-  const [assistantText, setAssistantText] = useState('');
+  const [transcript, setTranscript] = useState<TranscriptItem[]>([]);
   const [receipt, setReceipt] = useState('');
-  const [events, setEvents] = useState<Array<{ at: number; type: string; payload: unknown }>>([]);
+  const [events, setEvents] = useState<RawEvent[]>([]);
   const [status, setStatus] = useState('idle');
   const [running, setRunning] = useState(false);
   const [started, setStarted] = useState(0);
   const [elapsed, setElapsed] = useState(0);
-  const [submission, setSubmission] = useState('no submission');
+  const [submission, setSubmission] = useState('');
   const [aborter, setAborter] = useState<AbortController | null>(null);
   const [copied, setCopied] = useState('');
   const startedRef = useRef(0);
+  const currentAssistantRef = useRef<string | null>(null);
 
   useEffect(() => {
     window.localStorage.setItem('flue_lab_base_url', baseUrl.trim());
@@ -77,8 +83,7 @@ function App() {
   const visibleEvents = events.slice(-80);
   const visibleEventOffset = events.length - visibleEvents.length;
   const toolEvents = events.filter((event) => isToolEvent(event.type, event.payload));
-  const visibleToolEvents = toolEvents.slice(-24);
-  const visibleToolOffset = toolEvents.length - visibleToolEvents.length;
+  const latestAssistantText = latestAssistant(transcript)?.text ?? '';
 
   function applyPreset(nextAgent: string) {
     const preset = agents.find((item) => item.name === nextAgent) ?? agents[0];
@@ -97,11 +102,12 @@ function App() {
   }
 
   function resetOutput() {
-    setAssistantText('');
+    setTranscript([]);
     setReceipt('');
     setEvents([]);
-    setSubmission('no submission');
+    setSubmission('');
     setElapsed(0);
+    currentAssistantRef.current = null;
   }
 
   function begin() {
@@ -122,11 +128,52 @@ function App() {
     setAborter(null);
     const origin = startedRef.current || started;
     setElapsed(Math.round(performance.now() - origin));
+    markAssistantStatus(nextStatus === 'aborted' ? 'aborted' : nextStatus === 'error' ? 'error' : 'complete');
   }
 
   function log(type: string, payload: unknown) {
     const origin = startedRef.current || started || performance.now();
     setEvents((prev) => [...prev, { at: Math.round(performance.now() - origin), type, payload }]);
+  }
+
+  function startTranscript(userText: string) {
+    const now = Date.now();
+    const userId = `user-${now}`;
+    const assistantId = `assistant-${now}`;
+    currentAssistantRef.current = assistantId;
+    setTranscript([
+      { id: userId, kind: 'user', agent, text: userText, at: 0 },
+      { id: assistantId, kind: 'assistant', text: '', status: 'streaming', at: 0 },
+    ]);
+  }
+
+  function appendAssistantText(text: string) {
+    const id = currentAssistantRef.current;
+    if (!id) return;
+    setTranscript((prev) => prev.map((item) => item.kind === 'assistant' && item.id === id ? { ...item, text: item.text + text } : item));
+  }
+
+  function setAssistantText(text: string) {
+    const id = currentAssistantRef.current;
+    if (!id) return;
+    setTranscript((prev) => prev.map((item) => item.kind === 'assistant' && item.id === id ? { ...item, text } : item));
+  }
+
+  function markAssistantStatus(nextStatus: 'streaming' | 'complete' | 'error' | 'aborted') {
+    const id = currentAssistantRef.current;
+    if (!id) return;
+    setTranscript((prev) => prev.map((item) => item.kind === 'assistant' && item.id === id ? { ...item, status: nextStatus } : item));
+  }
+
+  function upsertToolEvent(type: string, payload: unknown) {
+    const callId = toolEventCallId(payload);
+    const id = `tool-${callId}`;
+    setTranscript((prev) => {
+      const existing = prev.findIndex((item) => item.kind === 'tool' && item.id === id);
+      const next: TranscriptItem = { id, kind: 'tool', type, payload, at: Math.round(performance.now() - (startedRef.current || started || performance.now())) };
+      if (existing === -1) return [...prev, next];
+      return prev.map((item, index) => index === existing ? next : item);
+    });
   }
 
   async function copyValue(label: string, value: string) {
@@ -136,44 +183,32 @@ function App() {
     window.setTimeout(() => setCopied((current) => current === label ? '' : current), 1600);
   }
 
-  async function waitResult() {
+  async function runMessage(wait: boolean) {
+    const prompt = message.trim();
+    if (!prompt) return;
     resetOutput();
+    startTranscript(prompt);
     const controller = begin();
     try {
-      const res = await fetch(endpoint(`/agents/${encodeURIComponent(agent)}/${encodeURIComponent(instanceId)}?wait=result`), {
+      const agentPath = `/agents/${encodeURIComponent(agent)}/${encodeURIComponent(instanceId)}`;
+      const path = wait ? `${agentPath}?wait=result` : agentPath;
+      const res = await fetch(endpoint(path), {
         method: 'POST',
         headers: requestHeaders(),
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message: prompt }),
         signal: controller.signal,
       });
       const text = await res.text();
       setReceipt(pretty(text));
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
-      const json = JSON.parse(text) as Receipt;
-      setAssistantText(json.result?.text ?? '');
-        end(`done ${res.status}`);
-    } catch (error) {
-      if ((error as Error).name !== 'AbortError') fail(error);
-    }
-  }
-
-  async function sendAndStream() {
-    resetOutput();
-    const controller = begin();
-    try {
-      const agentPath = `/agents/${encodeURIComponent(agent)}/${encodeURIComponent(instanceId)}`;
-      const sendRes = await fetch(endpoint(agentPath), {
-        method: 'POST',
-        headers: requestHeaders(),
-        body: JSON.stringify({ message }),
-        signal: controller.signal,
-      });
-      const sendText = await sendRes.text();
-      setReceipt(pretty(sendText));
-      if (!sendRes.ok) throw new Error(`HTTP ${sendRes.status}: ${sendText}`);
-      const sent = JSON.parse(sendText) as Receipt;
+      const sent = JSON.parse(text) as Receipt;
       setSubmission(sent.submissionId || 'submitted');
-        await streamSse(endpoint(`${agentPath}?offset=${encodeURIComponent(sent.offset || '-1')}&live=sse`), controller.signal);
+      if (wait) {
+        setAssistantText(sent.result?.text ?? '');
+        end(`done ${res.status}`);
+        return;
+      }
+      await streamSse(endpoint(`${agentPath}?offset=${encodeURIComponent(sent.offset || '-1')}&live=sse`), controller.signal);
       end('stream complete');
     } catch (error) {
       if ((error as Error).name !== 'AbortError') fail(error);
@@ -234,8 +269,9 @@ function App() {
     for (const item of items) {
       const type = eventType(item, eventName);
       log(type, item);
+      if (isToolEvent(type, item)) upsertToolEvent(type, item);
       const text = extractText(item);
-      if (text) setAssistantText((prev) => prev + text);
+      if (text) appendAssistantText(text);
       if (type === 'idle' || type === 'submission_settled') {
         setStatus(type);
         terminal = true;
@@ -253,6 +289,7 @@ function App() {
   function fail(error: unknown) {
     setStatus('error');
     setRunning(false);
+    markAssistantStatus('error');
     log('error', { message: error instanceof Error ? error.message : String(error) });
   }
 
@@ -263,14 +300,41 @@ function App() {
           <CloudflareLogo className="cf-logo" color="color" />
           <div>
             <h1>Flue Agent Streaming Lab</h1>
-            <p>Test protected Flue agent streams.</p>
+            <p>Chat with protected Flue agents and inspect their streams.</p>
           </div>
         </div>
       </header>
 
-      <main className="lab-grid">
-        <section className="panel controls-panel">
-          <details className="connection-settings">
+      <main className="lab-grid chat-layout">
+        <aside className="panel controls-panel config-panel">
+          <div className="sidebar-section">
+            <div className="eyebrow">Configuration</div>
+            <Field label="Agent">
+              <select className="native-select" value={agent} onChange={(event) => applyPreset(event.currentTarget.value)}>
+                {agents.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
+              </select>
+            </Field>
+          </div>
+
+          <div className="sidebar-section">
+            <div className="field-label">Presets</div>
+            <div className="preset-strip preset-stack" aria-label="Agent presets">
+              {agents.map((item) => (
+                <Button key={item.name} type="button" variant={item.name === selectedPreset.name ? 'primary' : 'outline'} size="xs" onClick={() => applyPreset(item.name)}>
+                  {item.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {!usesProduction ? (
+            <div className="preview-warning">
+              <span>Remote preview is for the UI only. Agent calls should target production.</span>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setBaseUrl(PROD_URL)}>Use production</Button>
+            </div>
+          ) : null}
+
+          <details className="connection-settings advanced-settings">
             <summary>Connection & advanced settings</summary>
             <Field label="Base URL">
               <div className="base-url-row">
@@ -285,133 +349,51 @@ function App() {
               <Input className="mono-input" value={instanceId} onChange={(event) => setInstanceId(event.currentTarget.value)} />
             </Field>
           </details>
+        </aside>
 
-          {!usesProduction ? (
-            <div className="preview-warning">
-              <span>Remote preview is for the UI only. Agent calls should target production.</span>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setBaseUrl(PROD_URL)}>Use production</Button>
-            </div>
-          ) : null}
-
-          <div className="primary-fields">
-            <Field label="Agent">
-              <select className="native-select" value={agent} onChange={(event) => applyPreset(event.currentTarget.value)}>
-                {agents.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
-              </select>
-            </Field>
-          </div>
-
-          <div className="prompt-block">
-            <div className="prompt-head">
-              <div>
-                <div className="field-label">Prompt</div>
-                <p className="field-hint">Pick a preset, then edit the instruction before streaming.</p>
-              </div>
-              <span className="selected-agent">{selectedPreset.name}</span>
-            </div>
-            <div className="preset-strip" aria-label="Agent presets">
-              {agents.map((item) => (
-                <Button key={item.name} type="button" variant={item.name === selectedPreset.name ? 'primary' : 'outline'} size="xs" onClick={() => applyPreset(item.name)}>
-                  {item.name}
-                </Button>
-              ))}
-            </div>
-            <Textarea className="prompt-input" value={message} onChange={(event) => setMessage(event.currentTarget.value)} rows={9} />
-          </div>
-
-          <div className="actions">
-            <Button type="button" variant="primary" onClick={sendAndStream} disabled={running}>Send + stream</Button>
-            <Button type="button" variant="secondary" onClick={waitResult} disabled={running}>Send + wait</Button>
-            {running ? <Button type="button" variant="destructive" onClick={stop}>Stop</Button> : null}
-          </div>
-        </section>
-
-        <section className="panel output-panel">
-          <div className="output-head">
+        <section className="panel chat-panel">
+          <div className="chat-header">
             <div>
-              <div className="eyebrow">Output</div>
-              <h2>Streaming response</h2>
+              <div className="eyebrow">Chat playground</div>
+              <h2>{selectedPreset.name}</h2>
             </div>
             <div className="output-actions">
-              <Button type="button" variant="secondary" size="sm" disabled={!assistantText} onClick={() => copyValue('response', assistantText)}>{copied === 'response' ? 'Copied' : 'Copy response'}</Button>
-              <Button type="button" variant="secondary" size="sm" disabled={submission === 'no submission'} onClick={() => copyValue('submission', submission)}>{copied === 'submission' ? 'Copied' : 'Copy ID'}</Button>
+              <Button type="button" variant="secondary" size="sm" disabled={!latestAssistantText} onClick={() => copyValue('response', latestAssistantText)}>{copied === 'response' ? 'Copied' : 'Copy response'}</Button>
               <Button type="button" variant="secondary" size="sm" disabled={!receipt} onClick={() => copyValue('receipt', receipt)}>{copied === 'receipt' ? 'Copied' : 'Copy JSON'}</Button>
               <Button type="button" variant="secondary" size="sm" disabled={events.length === 0} onClick={() => copyValue('events', JSON.stringify(events, null, 2))}>{copied === 'events' ? 'Copied' : 'Copy events'}</Button>
-              <Button type="button" variant="secondary" size="sm" disabled={toolEvents.length === 0} onClick={() => copyValue('tools', JSON.stringify(toolEvents, null, 2))}>{copied === 'tools' ? 'Copied' : 'Copy tools'}</Button>
             </div>
           </div>
 
-          <div className="status-grid" aria-label="Run status">
-            <div className="status-card status-card-primary">
-              <span className="status-label">Status</span>
-              <StatusBadge status={status} />
-            </div>
-            <div className={elapsed > 30000 ? 'status-card metric-card slow' : 'status-card metric-card'}>
-              <span className="status-label">Elapsed</span>
-              <strong>{formatElapsed(elapsed)}</strong>
-            </div>
-            <div className="status-card metric-card">
-              <span className="status-label">Events</span>
-              <strong>{events.length}</strong>
-            </div>
-            <div className="status-card metric-card">
-              <span className="status-label">Tools</span>
-              <strong>{toolEvents.length}</strong>
-            </div>
-            <div className="status-card submission-card">
-              <span className="status-label">Submission</span>
-              <code title={submission}>{submission}</code>
+          <RunStatusBar status={status} elapsed={elapsed} events={events.length} tools={toolEvents.length} submission={submission} />
+
+          <Transcript transcript={transcript} running={running} />
+
+          <div className="composer">
+            <Textarea className="composer-input" value={message} onChange={(event) => setMessage(event.currentTarget.value)} rows={4} placeholder="Ask the selected agent…" />
+            <div className="composer-actions">
+              {running ? <Button type="button" variant="destructive" onClick={stop}>Stop stream</Button> : <Button type="button" variant="primary" onClick={() => runMessage(false)}>Send + stream</Button>}
+              <Button type="button" variant="secondary" onClick={() => runMessage(true)} disabled={running}>Send + wait</Button>
             </div>
           </div>
 
-          <div className="live-output-grid">
-            <div className="response-column">
-              <div className="response-card">
-                <div className="response-card-head">
-                  <span>Assistant output</span>
-                  {running ? <span className="streaming-indicator">Streaming…</span> : null}
-                </div>
-                {assistantText ? <pre className="output-pre assistant-output">{assistantText}</pre> : <Placeholder title="Waiting for response" description="Start a stream or wait for a result." />}
-              </div>
-              {receipt ? (
-                <details className="receipt-details">
-                  <summary><span>Receipt / result JSON</span><span>Inspect request receipt</span></summary>
-                  <pre className="receipt-pre">{receipt}</pre>
-                </details>
-              ) : null}
-            </div>
-
-            <div className="raw-column">
-              <div className="tool-stream-card">
-                <div className="response-card-head">
-                  <span>Tool activity</span>
-                  <span className="event-count-pill">{toolEvents.length} tool events</span>
-                </div>
-                {toolEvents.length === 0 ? <Placeholder title="No tool calls yet" description="Tool calls will stream here as soon as the agent invokes them. Try workspace, docs-rag, or data-cleaner." /> : (
-                  <div className="tool-list">
-                    {visibleToolEvents.map((event, index) => (
-                      <article className={toolEventClass(event.type)} key={`${event.type}-${visibleToolOffset + index}`}>
-                        <div className="tool-meta">
-                          <span>#{visibleToolOffset + index + 1}</span>
-                          <span>{event.at} ms</span>
-                          <strong>{toolEventName(event.payload)}</strong>
-                          <Badge variant={event.type === 'tool_start' ? 'neutral' : 'green'}>{event.type === 'tool_start' ? 'running' : 'completed'}</Badge>
-                        </div>
-                        <code>{toolEventCallId(event.payload)}</code>
-                        <p>{toolEventSummary(event.payload)}</p>
-                      </article>
-                    ))}
+          <details className="debug-drawer">
+            <summary>
+              <span>Debug drawer</span>
+              <span>{events.length} raw events · {toolEvents.length} tool events</span>
+            </summary>
+            <div className="debug-grid">
+              <div className="debug-section">
+                <div className="response-card-head"><span>Tool events</span></div>
+                {toolEvents.length === 0 ? <Placeholder title="No tool calls yet" description="Tool calls appear inline in the transcript and here for debugging." /> : (
+                  <div className="tool-list compact-list">
+                    {toolEvents.slice(-24).map((event, index) => <ToolCard key={`${event.type}-${index}`} event={event} index={Math.max(0, toolEvents.length - 24) + index} compact />)}
                   </div>
                 )}
               </div>
-
-              <div className="raw-card">
-                <div className="response-card-head">
-                  <span>Live raw events</span>
-                  <span className="event-count-pill">{events.length} events · latest {visibleEvents.length}</span>
-                </div>
-                {events.length === 0 ? <Placeholder title="No stream events yet" description="Raw SSE events will appear here as the response streams." /> : (
-                  <div className="event-list">
+              <div className="debug-section">
+                <div className="response-card-head"><span>Raw events</span><span className="event-count-pill">latest {visibleEvents.length}</span></div>
+                {events.length === 0 ? <Placeholder title="No stream events yet" description="Raw SSE events will appear here." /> : (
+                  <div className="event-list compact-list">
                     {visibleEvents.map((event, index) => (
                       <article className="event-card" key={`${event.type}-${visibleEventOffset + index}`}>
                         <div className="event-meta"><span>#{visibleEventOffset + index + 1}</span><span>{event.at} ms</span><strong>{event.type}</strong></div>
@@ -422,10 +404,80 @@ function App() {
                 )}
               </div>
             </div>
-          </div>
+            {receipt ? (
+              <details className="receipt-details">
+                <summary><span>Receipt / result JSON</span><span>Inspect request receipt</span></summary>
+                <pre className="receipt-pre">{receipt}</pre>
+              </details>
+            ) : null}
+          </details>
         </section>
       </main>
     </div>
+  );
+}
+
+function RunStatusBar({ status, elapsed, events, tools, submission }: { status: string; elapsed: number; events: number; tools: number; submission: string }) {
+  return (
+    <div className="status-strip" aria-label="Run status">
+      <div className="status-pill"><span>Status</span><StatusBadge status={status} /></div>
+      <div className="status-pill"><span>Elapsed</span><strong>{formatElapsed(elapsed)}</strong></div>
+      <div className="status-pill"><span>Events</span><strong>{events}</strong></div>
+      <div className="status-pill"><span>Tools</span><strong>{tools}</strong></div>
+      <div className="status-pill submission-pill"><span>Submission</span><code title={submission || '—'}>{submission || '—'}</code></div>
+    </div>
+  );
+}
+
+function Transcript({ transcript, running }: { transcript: TranscriptItem[]; running: boolean }) {
+  if (transcript.length === 0) {
+    return <div className="transcript empty-transcript"><Placeholder title="Start a conversation" description="Send a prompt to see the agent stream responses, tool calls, and debug metadata." /></div>;
+  }
+  return (
+    <div className="transcript" aria-live="polite">
+      {transcript.map((item, index) => {
+        if (item.kind === 'user') return <UserMessage key={item.id} item={item} />;
+        if (item.kind === 'assistant') return <AssistantMessage key={item.id} item={item} running={running && index === transcript.length - 1} />;
+        return <ToolCard key={item.id} event={{ at: item.at, type: item.type, payload: item.payload }} index={index} />;
+      })}
+    </div>
+  );
+}
+
+function UserMessage({ item }: { item: Extract<TranscriptItem, { kind: 'user' }> }) {
+  return (
+    <article className="message-row user-row">
+      <div className="message-bubble user-bubble">
+        <div className="message-meta"><span>User</span><code>{item.agent}</code></div>
+        <pre>{item.text}</pre>
+      </div>
+    </article>
+  );
+}
+
+function AssistantMessage({ item, running }: { item: Extract<TranscriptItem, { kind: 'assistant' }>; running: boolean }) {
+  return (
+    <article className="message-row assistant-row">
+      <div className="message-bubble assistant-bubble">
+        <div className="message-meta"><span>Assistant</span>{item.status === 'streaming' || running ? <span className="streaming-indicator">Streaming…</span> : <Badge variant={item.status === 'error' ? 'red' : item.status === 'aborted' ? 'neutral' : 'green'}>{item.status}</Badge>}</div>
+        {item.text ? <pre>{item.text}</pre> : <div className="typing-placeholder">Waiting for first token…</div>}
+      </div>
+    </article>
+  );
+}
+
+function ToolCard({ event, index, compact = false }: { event: RawEvent; index: number; compact?: boolean }) {
+  return (
+    <article className={`${toolEventClass(event.type)} tool-card ${compact ? 'compact' : ''}`}>
+      <div className="tool-meta">
+        <span>#{index + 1}</span>
+        <span>{event.at} ms</span>
+        <strong>{toolEventName(event.payload)}</strong>
+        <Badge variant={event.type === 'tool_start' ? 'neutral' : 'green'}>{event.type === 'tool_start' ? 'running' : 'completed'}</Badge>
+      </div>
+      <code>{toolEventCallId(event.payload)}</code>
+      <p>{toolEventSummary(event.payload)}</p>
+    </article>
   );
 }
 
@@ -437,7 +489,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
-
 
 function Placeholder({ title, description }: { title: string; description: string }) {
   return (
@@ -454,7 +505,9 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant={isError ? 'red' : isActive ? 'green' : 'neutral'}><span className="status-dot" />{status}</Badge>;
 }
 
-
+function latestAssistant(items: TranscriptItem[]) {
+  return [...items].reverse().find((item): item is Extract<TranscriptItem, { kind: 'assistant' }> => item.kind === 'assistant');
+}
 
 function isToolEvent(type: string, payload: unknown) {
   if (type === 'tool_start' || type === 'tool') return true;
@@ -533,8 +586,6 @@ function extractText(value: unknown): string {
     if (typeof record.delta === 'string') return record.delta;
   }
   if ((type === 'text' || type === 'message_text') && typeof record.text === 'string') return record.text;
-  // Streaming terminal events may include result.text; ignore it to avoid duplicating
-  // the text_delta chunks already rendered above. Wait-result responses do not use this helper.
   return '';
 }
 
