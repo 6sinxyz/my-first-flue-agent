@@ -34,8 +34,9 @@ const multiply = defineTool({
 
 export const calcConfig = {
   model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
+  thinkingLevel: 'off' as const,
   instructions:
-    'You are a calculator agent. ALWAYS use the provided tools (add, subtract, multiply) to compute answers — never compute results yourself. Break expressions like 12*7+3 into tool calls. After getting tool results, state the final answer briefly.',
+    'Use calculator tools immediately. Never compute results yourself. Break expressions like 12*7+3 into add/subtract/multiply calls. After tool results, state the final answer briefly.',
   tools: [add, subtract, multiply],
 };
 

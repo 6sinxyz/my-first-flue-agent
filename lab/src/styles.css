@@ -134,7 +134,7 @@ p { margin: 0; }
 .output-actions button { white-space: nowrap; }
 .status-strip {
   display: grid;
-  grid-template-columns: minmax(8rem, .65fr) minmax(7rem, .45fr) minmax(6rem, .35fr) minmax(6rem, .35fr) minmax(0, 1.4fr);
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
   gap: .6rem;
   padding: .75rem 1rem;
   border-bottom: 1px solid var(--color-kumo-hairline, #e5e5e5);

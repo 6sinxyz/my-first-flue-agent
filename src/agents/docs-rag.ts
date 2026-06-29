@@ -6,7 +6,8 @@ export const description = 'Small docs/search/RAG demo with persistent ingest an
 
 export default defineAgent(({ id, env }: { id: string; env: any }) => ({
   model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
+  thinkingLevel: 'off',
   instructions:
-    'You are a docs RAG agent. Use ingest_doc when the user gives new source text to remember. Always call search_docs before answering knowledge questions. Include citation ids and URLs. Mention that ingested docs persist for the same agent id and reset_docs clears them.',
+    'Use docs tools immediately and answer concisely. If source text is provided, call ingest_doc first. For questions, call search_docs before answering. Include citation ids/URLs. Mention persistence only when relevant.',
   tools: makeDocsTools(env, id),
 }));

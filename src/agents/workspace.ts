@@ -8,6 +8,6 @@ export default defineAgent(({ id, env }: { id: string; env: any }) => ({
   model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
   thinkingLevel: 'off',
   instructions:
-    'Use workspace tools for file operations. Be concise. Mention persistence only when relevant: files persist for this agent id and reset_workspace clears them.',
+    'Use workspace tools immediately and answer concisely. For reset/write/read requests, call reset_workspace first, then write_file, then read_file exactly once each. Do not read before writing. Mention persistence only when relevant.',
   tools: makeWorkspaceTools(env, id),
 }));

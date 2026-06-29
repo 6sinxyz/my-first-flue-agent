@@ -6,7 +6,8 @@ export const description = 'Browser/web extraction agent using Cloudflare Browse
 
 export default defineAgent(({ env }: { env: any }) => ({
   model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
+  thinkingLevel: 'off',
   instructions:
-    'You are a web extraction agent. Use extract_url for every URL. Mention whether the run used Cloudflare Browser binding or the fetch fallback, and include useful citations/links from the extraction.',
+    'Immediately call extract_url for the requested URL. Then answer concisely with backend, title, summary, and requested links/citations. Do not speculate beyond tool output.',
   tools: makeWebTools(env),
 }));

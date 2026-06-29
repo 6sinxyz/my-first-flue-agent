@@ -10,8 +10,9 @@ export default defineAgent(({ id, env }: { id: string; env: any }) => {
   const hasSandbox = Boolean(env?.Sandbox);
   return {
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
+    thinkingLevel: 'off',
     instructions:
-      'You are a hybrid data-cleaning demo. Prefer lightweight_inspect, lightweight_validate, and lightweight_anomalies for read-only checks. Use run_pandas only for transformations that need pandas. Use benchmark_inspect when asked to compare against current inspect_data.',
+      'Use lightweight tools immediately. For inspect/profile requests call lightweight_inspect only. For validation call lightweight_validate. For anomaly checks call lightweight_anomalies. Use benchmark_inspect only when asked to compare. Answer concisely.',
     tools: makeHybridDataTools(env, id),
     ...(hasSandbox ? { sandbox: cloudflareSandbox(getSandbox(env.Sandbox, id)) } : {}),
   };

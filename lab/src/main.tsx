@@ -58,6 +58,8 @@ function App() {
   const [running, setRunning] = useState(false);
   const [started, setStarted] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  const [firstToolMs, setFirstToolMs] = useState(0);
+  const [firstTextMs, setFirstTextMs] = useState(0);
   const [submission, setSubmission] = useState('');
   const [aborter, setAborter] = useState<AbortController | null>(null);
   const [copied, setCopied] = useState('');
@@ -107,6 +109,8 @@ function App() {
     setEvents([]);
     setSubmission('');
     setElapsed(0);
+    setFirstToolMs(0);
+    setFirstTextMs(0);
     currentAssistantRef.current = null;
   }
 
@@ -205,6 +209,7 @@ function App() {
       setSubmission(sent.submissionId || 'submitted');
       if (wait) {
         setAssistantText(sent.result?.text ?? '');
+        setFirstTextMs(Math.round(performance.now() - (startedRef.current || started || performance.now())));
         end(`done ${res.status}`);
         return;
       }
@@ -269,9 +274,16 @@ function App() {
     for (const item of items) {
       const type = eventType(item, eventName);
       log(type, item);
-      if (isToolEvent(type, item)) upsertToolEvent(type, item);
+      const at = Math.round(performance.now() - (startedRef.current || started || performance.now()));
+      if (isToolEvent(type, item)) {
+        upsertToolEvent(type, item);
+        if (type === 'tool') setFirstToolMs((current) => current || at);
+      }
       const text = extractText(item);
-      if (text) appendAssistantText(text);
+      if (text) {
+        setFirstTextMs((current) => current || at);
+        appendAssistantText(text);
+      }
       if (type === 'idle' || type === 'submission_settled') {
         setStatus(type);
         terminal = true;
@@ -364,7 +376,7 @@ function App() {
             </div>
           </div>
 
-          <RunStatusBar status={status} elapsed={elapsed} events={events.length} tools={toolEvents.length} submission={submission} />
+          <RunStatusBar status={status} elapsed={elapsed} firstToolMs={firstToolMs} firstTextMs={firstTextMs} events={events.length} tools={toolEvents.length} submission={submission} />
 
           <Transcript transcript={transcript} running={running} />
 
@@ -417,11 +429,13 @@ function App() {
   );
 }
 
-function RunStatusBar({ status, elapsed, events, tools, submission }: { status: string; elapsed: number; events: number; tools: number; submission: string }) {
+function RunStatusBar({ status, elapsed, firstToolMs, firstTextMs, events, tools, submission }: { status: string; elapsed: number; firstToolMs: number; firstTextMs: number; events: number; tools: number; submission: string }) {
   return (
     <div className="status-strip" aria-label="Run status">
       <div className="status-pill"><span>Status</span><StatusBadge status={status} /></div>
       <div className="status-pill"><span>Elapsed</span><strong>{formatElapsed(elapsed)}</strong></div>
+      <div className="status-pill"><span>First result</span><strong>{firstToolMs ? formatElapsed(firstToolMs) : '—'}</strong></div>
+      <div className="status-pill"><span>First token</span><strong>{firstTextMs ? formatElapsed(firstTextMs) : '—'}</strong></div>
       <div className="status-pill"><span>Events</span><strong>{events}</strong></div>
       <div className="status-pill"><span>Tools</span><strong>{tools}</strong></div>
       <div className="status-pill submission-pill"><span>Submission</span><code title={submission || '—'}>{submission || '—'}</code></div>
