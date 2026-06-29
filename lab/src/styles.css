@@ -276,6 +276,57 @@ p { margin: 0; }
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
+.tool-result {
+  margin-top: .65rem;
+  border: 1px solid var(--color-kumo-hairline, #e5e5e5);
+  border-radius: .7rem;
+  background: color-mix(in srgb, var(--color-kumo-recessed, #f5f5f3) 70%, white);
+  overflow: hidden;
+}
+.tool-result-title {
+  padding: .5rem .65rem;
+  border-bottom: 1px solid var(--color-kumo-hairline, #e5e5e5);
+  background: var(--color-kumo-base, white);
+  color: var(--text-color-kumo-subtle, #666);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+.tool-result-grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: .25rem .65rem;
+  margin: 0;
+  padding: .6rem .65rem;
+  border-bottom: 1px solid var(--color-kumo-hairline, #e5e5e5);
+}
+.tool-result-grid dt {
+  color: var(--text-color-kumo-placeholder, #8a8a8a);
+  font-size: .72rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+.tool-result-grid dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-color-kumo-strong, #111);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .76rem;
+  overflow-wrap: anywhere;
+}
+.tool-result pre {
+  margin: 0;
+  max-height: 8.5rem;
+  overflow: auto;
+  padding: .65rem;
+  color: var(--text-color-kumo-default, #171717);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .76rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 
 .composer {
   border-top: 1px solid var(--color-kumo-hairline, #e5e5e5);

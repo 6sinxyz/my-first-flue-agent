@@ -467,6 +467,7 @@ function AssistantMessage({ item, running }: { item: Extract<TranscriptItem, { k
 }
 
 function ToolCard({ event, index, compact = false }: { event: RawEvent; index: number; compact?: boolean }) {
+  const output = toolEventOutput(event.payload);
   return (
     <article className={`${toolEventClass(event.type)} tool-card ${compact ? 'compact' : ''}`}>
       <div className="tool-meta">
@@ -476,8 +477,28 @@ function ToolCard({ event, index, compact = false }: { event: RawEvent; index: n
         <Badge variant={event.type === 'tool_start' ? 'neutral' : 'green'}>{event.type === 'tool_start' ? 'running' : 'completed'}</Badge>
       </div>
       <code>{toolEventCallId(event.payload)}</code>
-      <p>{toolEventSummary(event.payload)}</p>
+      {output !== undefined ? <StructuredToolResult value={output} /> : <p>{toolEventSummary(event.payload)}</p>}
     </article>
+  );
+}
+
+function StructuredToolResult({ value }: { value: unknown }) {
+  const fields = importantToolFields(value);
+  return (
+    <div className="tool-result" aria-label="Immediate tool result">
+      <div className="tool-result-title">Immediate result</div>
+      {fields.length > 0 ? (
+        <dl className="tool-result-grid">
+          {fields.map(([key, field]) => (
+            <React.Fragment key={key}>
+              <dt>{key}</dt>
+              <dd>{formatToolValue(field)}</dd>
+            </React.Fragment>
+          ))}
+        </dl>
+      ) : null}
+      <pre>{compactJson(value)}</pre>
+    </div>
   );
 }
 
@@ -535,16 +556,55 @@ function toolEventClass(type: string) {
 function toolEventSummary(payload: unknown) {
   if (!payload || typeof payload !== 'object') return 'Tool event received.';
   const record = payload as Record<string, unknown>;
+  const output = toolEventOutput(payload);
+  if (output !== undefined) return compactJson(output);
   const result = record.result;
-  if (result && typeof result === 'object') {
-    const details = (result as { details?: unknown }).details;
-    if (details && typeof details === 'object' && 'output' in details) return compactJson((details as { output?: unknown }).output);
-    if ('content' in result) return compactJson((result as { content?: unknown }).content);
-  }
+  if (result && typeof result === 'object' && 'content' in result) return compactJson((result as { content?: unknown }).content);
   if (result !== undefined) return compactJson(result);
   const args = record.args ?? record.arguments ?? record.input;
   if (args !== undefined) return compactJson(args);
   return 'Tool call started.';
+}
+
+function toolEventOutput(payload: unknown): unknown {
+  if (!payload || typeof payload !== 'object') return undefined;
+  const record = payload as Record<string, unknown>;
+  const result = record.result;
+  if (result && typeof result === 'object') {
+    const details = (result as { details?: unknown }).details;
+    if (details && typeof details === 'object' && 'output' in details) return (details as { output?: unknown }).output;
+    const content = (result as { content?: unknown }).content;
+    const parsed = parseTextContent(content);
+    if (parsed !== undefined) return parsed;
+  }
+  return undefined;
+}
+
+function parseTextContent(content: unknown): unknown {
+  if (!Array.isArray(content)) return undefined;
+  const text = content
+    .map((item) => item && typeof item === 'object' && 'text' in item ? String((item as { text?: unknown }).text ?? '') : '')
+    .join('')
+    .trim();
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+function importantToolFields(value: unknown): [string, unknown][] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+  const record = value as Record<string, unknown>;
+  const priority = ['value', 'backend', 'capability', 'mode', 'title', 'url', 'row_count', 'rows', 'columns', 'store_mode'];
+  return priority.filter((key) => record[key] !== undefined).map((key) => [key, record[key]]);
+}
+
+function formatToolValue(value: unknown) {
+  if (Array.isArray(value)) return value.map((item) => String(item)).join(', ');
+  if (value && typeof value === 'object') return compactJson(value);
+  return String(value);
 }
 
 function compactJson(value: unknown) {

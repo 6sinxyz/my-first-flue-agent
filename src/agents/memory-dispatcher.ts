@@ -41,7 +41,8 @@ export default defineAgent(({ id, env }: { id: string; env: any }) => {
   const workspaceSubagent = defineAgentProfile({
     name: 'workspace',
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
-    instructions: 'Workspace subagent. Use workspace tools for write, read, list, workspace_grep, diff, and reset operations. Files persist for the stable agent id.',
+    thinkingLevel: 'off',
+    instructions: 'Workspace subagent. Use tools for write/read/list/workspace_grep/diff/reset. Be concise; files persist for the stable agent id.',
     tools: makeWorkspaceTools(env, id),
   });
   const webSubagent = defineAgentProfile({
@@ -53,6 +54,7 @@ export default defineAgent(({ id, env }: { id: string; env: any }) => {
 
   return {
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
+    thinkingLevel: 'off',
     instructions:
       'You are a memory-enabled dispatcher. First call recall_memory. Use remember when the user states a durable preference. Use record_dispatch when choosing calculator, code-mode, hybrid-data-cleaner, workspace, docs-rag, web-extractor, or email-processor. Delegate via the task tool to the matching subagent and return a concise result. Tell users memory is keyed by this stable agent id and can be cleared with reset_memory.',
     tools: makeMemoryTools(env, id),
