@@ -47,7 +47,7 @@ export default defineAgent(({ id, env }: { id: string; env: any }) => {
   const webSubagent = defineAgentProfile({
     name: 'web-extractor',
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
-    instructions: 'Web extraction subagent. Use fetch_extract to retrieve and summarize page title/text/links with citations.',
+    instructions: 'Web extraction subagent. Use extract_url to retrieve and summarize page title/text/links with citations; report the backend used.',
     tools: makeWebTools(env),
   });
 

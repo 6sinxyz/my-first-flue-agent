@@ -43,8 +43,8 @@ async function fetchExtract(url: string) {
 }
 
 export function makeWebTools(env: any) {
-  const fetchExtractTool = defineTool({
-    name: 'fetch_extract',
+  const extractUrlTool = defineTool({
+    name: 'extract_url',
     description: 'Extract a URL using Cloudflare Browser Rendering when BROWSER is bound; otherwise use fetch + static HTML extraction and report the backend used.',
     input: v.object({ url: v.string() }),
     run: async ({ input }) => {
@@ -65,5 +65,5 @@ export function makeWebTools(env: any) {
       return { url: url.toString(), backend: 'fetch-html-fallback', capability: 'static-html-only', ...(await fetchExtract(url.toString())) };
     },
   });
-  return [fetchExtractTool];
+  return [extractUrlTool];
 }
