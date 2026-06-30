@@ -142,7 +142,7 @@ curl -sS "$PROD_URL/agents/router/prod-router?wait=result" \
 curl -sS "$PROD_URL/agents/data-cleaner/prod-cleaner?wait=result" \
   -H 'content-type: application/json' \
   -H "authorization: Bearer $FLUE_API_TOKEN" \
-  -d '{"message":"Inspect and clean CSV at https://example.com/customers.csv. Prefer URL/R2 data refs in prod; use local filesystem paths only for dev fallback."}'
+  -d '{"message":"Inspect and clean CSV at https://example.com/customers.csv. Prefer http(s) or r2://DATA_R2/... data refs in prod; use local filesystem paths only for dev fallback."}'
 ```
 
 ## New demos

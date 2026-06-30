@@ -80,5 +80,11 @@
   "browser": {
     "binding": "BROWSER",
     "remote": true
-  }
+  },
+  "r2_buckets": [
+    {
+      "binding": "DATA_R2",
+      "bucket_name": "my-first-flue-agent-data"
+    }
+  ]
 }

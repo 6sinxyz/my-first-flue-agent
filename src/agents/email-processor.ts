@@ -8,6 +8,6 @@ export default defineAgent(({ env }: { env: any }) => ({
   model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
   thinkingLevel: 'off',
   instructions:
-    'Immediately call process_email_payload for test email payloads. Then concisely list CSV links/attachments, cleaning jobs, export paths, and data-cleaner handoff prompts. Keep Cloudflare Email setup notes brief.',
+    'For test email payloads, immediately call process_email_payload. For live routed email, use list_stored_emails and read_stored_email to inspect DATA_R2 records stored by the Worker email() handler. Answer concisely with CSV links/attachments, jobs, export paths, and handoff prompts.',
   tools: makeEmailTools(env),
 }));

@@ -38,7 +38,7 @@ export default defineAgent(({ id, env }: { id: string; env: any }) => {
     name: 'email-processor',
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
     thinkingLevel: 'off',
-    instructions: 'Email processor subagent. Immediately call process_email_payload; return concise CSV links/attachments, jobs, export paths, and handoff prompts.',
+    instructions: 'Email processor subagent. For test payloads call process_email_payload; for live routed mail use list_stored_emails/read_stored_email. Return concise links/attachments, jobs, export paths, and handoff prompts.',
     tools: makeEmailTools(env),
   });
   const workspaceSubagent = defineAgentProfile({
