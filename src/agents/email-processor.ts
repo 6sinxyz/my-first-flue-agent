@@ -6,7 +6,8 @@ export const description = 'Test-mode email payload and CSV link processing demo
 
 export default defineAgent(({ env }: { env: any }) => ({
   model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
+  thinkingLevel: 'off',
   instructions:
-    'You process test-mode email payloads. Use process_email_payload, list CSV links/attachments, include cleaning summaries, suggested export paths, and data-cleaner handoff prompts. Explain that production Cloudflare Email requires Email Routing to invoke an email handler and R2/signed URLs for attachments.',
+    'For test email payloads, immediately call process_email_payload. For live routed email, use list_stored_emails and read_stored_email to inspect DATA_R2 records stored by the Worker email() handler. Answer concisely with CSV links/attachments, jobs, export paths, and handoff prompts.',
   tools: makeEmailTools(env),
 }));

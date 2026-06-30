@@ -21,6 +21,7 @@ export default defineAgent(({ id, env }: { id: string; env: any }) => {
   const hasSandbox = Boolean(env?.Sandbox);
   return {
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
+    thinkingLevel: 'off',
     instructions: `You are a data-cleaning agent that turns natural-language ETL specs into pandas code and runs it, with automatic data-quality checks.
 
 Workflow (follow strictly):

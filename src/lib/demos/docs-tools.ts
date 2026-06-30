@@ -32,7 +32,7 @@ const builtInDocs: DocRecord[] = [
     id: 'cloudflare-email',
     title: 'Cloudflare Email Workers',
     url: 'https://developers.cloudflare.com/email-routing/email-workers/',
-    text: 'Cloudflare Email Routing can invoke an email handler with message metadata and raw MIME content. This repo includes a test-mode email payload processor, not a live email binding.',
+    text: 'Cloudflare Email Routing can invoke a Worker email() handler with message metadata and raw MIME content. This repo includes a live email() handler that stores raw MIME/metadata in DATA_R2 after a domain route is configured, plus test-mode email payload tools.',
   },
 ];
 

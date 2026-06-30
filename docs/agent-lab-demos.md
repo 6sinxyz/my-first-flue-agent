@@ -10,9 +10,9 @@ See `docs/calling-flue.md` for raw HTTP, SDK, React, script, and production URL 
 - `workspace`: durable write/read/list/workspace_grep/diff/reset workspace. Files are keyed by the stable agent id and backed by `DemoJsonStore` in production, with an in-memory dev fallback.
 - `hybrid-data-cleaner`: Worker-side CSV inspect/validate/anomaly tools plus the existing pandas container tools for transforms. `benchmark_inspect` compares Worker inspect with `inspect_data`.
 - `repeatable-report`: Flue `defineWorkflow` equivalent for a repeatable deterministic workflow. `@cloudflare/dynamic-workflows` is not exposed by the installed packages.
-- `web-extractor`: URL extraction. Uses safe `fetch` and HTML parsing unless a Cloudflare Browser binding is wired later.
+- `web-extractor`: URL extraction through Cloudflare Browser Rendering when `env.BROWSER` is bound, with explicit static HTML fallback metadata only if Browser Rendering is unavailable.
 - `docs-rag`: small built-in documentation search agent with citations.
-- `email-processor`: test-mode email payload and CSV link/attachment processing. Production Cloudflare Email Routing still needs an `email()` handler/binding setup.
+- `email-processor`: test-mode payload processing plus live email event inspection from DATA_R2. The Worker has an `email()` handler that stores raw MIME/metadata in R2; Cloudflare Email Routing still needs a verified domain/address route to deliver messages.
 - `memory-dispatcher`: stable-id memory for dispatch decisions over calculator, code-mode, hybrid-data-cleaner, workspace, docs, web, and email demos. Use `reset_memory` to clear it.
 
 ## Frontend and scripts
@@ -155,5 +155,8 @@ curl -sS "$PROD_URL/agents/memory-dispatcher/alice?wait=result" \
 
 - Code execution: `code-mode` is intentionally scoped to deterministic arithmetic expression evaluation. It rejects general JavaScript, imports, network calls, timers, and nondeterministic APIs.
 - Dynamic workflows: `@cloudflare/dynamic-workflows` is not installed or exposed. `repeatable-report` uses Flue workflow runs, result waiting, and durable event streams.
-- Browser Rendering: add a Cloudflare Browser binding and browser rendering package before replacing `web-extractor`'s fetch fallback.
-- Email Routing: configure Cloudflare Email Routing to call an `email()` handler for live mail. The current `email-processor` is a test-mode JSON/prompt demo.
+- Browser Rendering: `web-extractor` is wired to the `BROWSER` binding via `@cloudflare/puppeteer`; check tool output `backend` to confirm Browser Rendering vs static HTML fallback.
+- Email Routing: configure Cloudflare Email Routing on a verified domain/address with action `worker` -> `my-first-flue-agent`. The Worker `email()` handler stores raw MIME under `email-raw/` and metadata under `email-events/` in DATA_R2; `email-processor` can list/read those records.
+
+
+See also: [Live Email Routing setup](email-routing.md).

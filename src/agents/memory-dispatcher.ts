@@ -23,38 +23,44 @@ export default defineAgent(({ id, env }: { id: string; env: any }) => {
   const dataCleanerSubagent = defineAgentProfile({
     name: 'hybrid-data-cleaner',
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
-    instructions: 'Hybrid data cleaner subagent. Prefer lightweight inspect/validate/anomaly tools and use pandas tools only for transforms.',
+    thinkingLevel: 'off',
+    instructions: 'Hybrid data cleaner subagent. Use lightweight inspect/validate/anomaly tools immediately; use pandas only for transforms. Be concise.',
     tools: makeHybridDataTools(env, id),
   });
   const docsSubagent = defineAgentProfile({
     name: 'docs-rag',
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
-    instructions: 'Docs RAG subagent. Use ingest_doc for new source text and search_docs before answering with citations.',
+    thinkingLevel: 'off',
+    instructions: 'Docs RAG subagent. Use ingest_doc for source text and search_docs before answers. Be concise with citations.',
     tools: makeDocsTools(env, id),
   });
   const emailSubagent = defineAgentProfile({
     name: 'email-processor',
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
-    instructions: 'Email processor subagent. Use process_email_payload to extract CSV links/attachments, produce cleaning summaries, suggested export paths, and handoff prompts.',
+    thinkingLevel: 'off',
+    instructions: 'Email processor subagent. For test payloads call process_email_payload; for live routed mail use list_stored_emails/read_stored_email. Return concise links/attachments, jobs, export paths, and handoff prompts.',
     tools: makeEmailTools(env),
   });
   const workspaceSubagent = defineAgentProfile({
     name: 'workspace',
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
-    instructions: 'Workspace subagent. Use workspace tools for write, read, list, workspace_grep, diff, and reset operations. Files persist for the stable agent id.',
+    thinkingLevel: 'off',
+    instructions: 'Workspace subagent. For reset/write/read, call reset_workspace, write_file, read_file exactly once in that order. Do not read before writing. Be concise.',
     tools: makeWorkspaceTools(env, id),
   });
   const webSubagent = defineAgentProfile({
     name: 'web-extractor',
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
-    instructions: 'Web extraction subagent. Use fetch_extract to retrieve and summarize page title/text/links with citations.',
+    thinkingLevel: 'off',
+    instructions: 'Web extraction subagent. Immediately call extract_url; summarize title/text/links and backend used. Be concise.',
     tools: makeWebTools(env),
   });
 
   return {
     model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
+    thinkingLevel: 'off',
     instructions:
-      'You are a memory-enabled dispatcher. First call recall_memory. Use remember when the user states a durable preference. Use record_dispatch when choosing calculator, code-mode, hybrid-data-cleaner, workspace, docs-rag, web-extractor, or email-processor. Delegate via the task tool to the matching subagent and return a concise result. Tell users memory is keyed by this stable agent id and can be cleared with reset_memory.',
+      'Memory dispatcher. Call recall_memory first. If the user states a durable preference, call remember. Pick exactly one target, call record_dispatch, then delegate with task. Return a concise result. Mention memory persistence only when relevant.',
     tools: makeMemoryTools(env, id),
     subagents: [
       calculatorSubagent,

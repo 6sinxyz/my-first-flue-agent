@@ -9,6 +9,9 @@
  */
 export { Sandbox } from '@cloudflare/sandbox';
 
+const EMAIL_EVENT_PREFIX = 'email-events/';
+const EMAIL_RAW_PREFIX = 'email-raw/';
+
 export class DemoJsonStore {
   constructor(private readonly state: any) {}
 
@@ -35,4 +38,73 @@ export class DemoJsonStore {
   }
 }
 
-export default {};
+async function handleEmail(message: any, env: any) {
+  const bucket = env?.DATA_R2;
+  if (!bucket?.put) {
+    message.setReject?.('DATA_R2 R2 binding is not configured for live email ingestion.');
+    return;
+  }
+
+  const rawBytes = await new Response(message.raw).arrayBuffer();
+  const digest = await crypto.subtle.digest('SHA-256', rawBytes);
+  const hash = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  const receivedAt = new Date().toISOString();
+  const id = `${receivedAt.replace(/[:.]/g, '-')}-${hash.slice(0, 16)}`;
+  const rawKey = `${EMAIL_RAW_PREFIX}${id}.eml`;
+  const eventKey = `${EMAIL_EVENT_PREFIX}${id}.json`;
+  const headers = headersToObject(message.headers);
+  const metadata = {
+    id,
+    received_at: receivedAt,
+    from: String(message.from ?? ''),
+    to: String(message.to ?? ''),
+    raw_key: rawKey,
+    raw_bytes: rawBytes.byteLength,
+    sha256: hash,
+    headers,
+    data_ref: `r2://DATA_R2/${rawKey}`,
+    note: 'Raw MIME stored by the Worker email() handler. Configure Cloudflare Email Routing to route a verified address to this Worker.',
+  };
+
+  await bucket.put(rawKey, rawBytes, {
+    httpMetadata: { contentType: 'message/rfc822' },
+    customMetadata: {
+      from: metadata.from.slice(0, 256),
+      to: metadata.to.slice(0, 256),
+      received_at: receivedAt,
+      sha256: hash,
+    },
+  });
+  await bucket.put(eventKey, JSON.stringify(metadata, null, 2), {
+    httpMetadata: { contentType: 'application/json' },
+    customMetadata: {
+      from: metadata.from.slice(0, 256),
+      to: metadata.to.slice(0, 256),
+      received_at: receivedAt,
+      raw_key: rawKey,
+    },
+  });
+}
+
+function headersToObject(headers: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!headers) return out;
+  if (typeof (headers as Headers).forEach === 'function') {
+    (headers as Headers).forEach((value, key) => { out[key] = value; });
+    return out;
+  }
+  if (Array.isArray(headers)) {
+    for (const pair of headers) {
+      if (Array.isArray(pair) && pair.length >= 2) out[String(pair[0]).toLowerCase()] = String(pair[1]);
+    }
+    return out;
+  }
+  if (typeof headers === 'object') {
+    for (const [key, value] of Object.entries(headers as Record<string, unknown>)) out[key.toLowerCase()] = String(value);
+  }
+  return out;
+}
+
+export default {
+  email: handleEmail,
+};

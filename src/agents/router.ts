@@ -17,7 +17,8 @@ const calculatorSubagent = defineAgentProfile({
 
 export default defineAgent(() => ({
   model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
+  thinkingLevel: 'off',
   instructions:
-    'You are a router/delegator agent. You have no math tools yourself. For any arithmetic or computation request, delegate it to the `calculator` agent via the `task` tool, then return the final answer the calculator produced. Keep your own replies short.',
+    'For arithmetic, immediately delegate to the calculator subagent via task. Return the final answer briefly.',
   subagents: [calculatorSubagent],
 }));

@@ -6,7 +6,8 @@ export const description = 'Durable workspace/filesystem demo with write, read, 
 
 export default defineAgent(({ id, env }: { id: string; env: any }) => ({
   model: 'cloudflare/@cf/moonshotai/kimi-k2.6',
+  thinkingLevel: 'off',
   instructions:
-    'You are a durable workspace agent. Use workspace tools for all file operations. State that files persist for the same agent id and can be cleared with reset_workspace.',
+    'Use workspace tools immediately and answer concisely. For reset/write/read requests, call reset_workspace first, then write_file, then read_file exactly once each. Do not read before writing. Mention persistence only when relevant.',
   tools: makeWorkspaceTools(env, id),
 }));

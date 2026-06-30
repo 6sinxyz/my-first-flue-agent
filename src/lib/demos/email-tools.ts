@@ -12,11 +12,43 @@ function outputName(url: string, index: number) {
   return `email-cleaned-${clean}`;
 }
 
+async function listEmailEvents(env: any, limit: number) {
+  const bucket = env?.DATA_R2;
+  if (!bucket?.list) return { configured: false, events: [], note: 'DATA_R2 R2 binding is not configured.' };
+  const listed = await bucket.list({ prefix: 'email-events/', limit });
+  const events = [];
+  for (const object of listed.objects ?? []) {
+    const item = await bucket.get(object.key);
+    if (!item) continue;
+    try {
+      events.push(JSON.parse(await item.text()));
+    } catch {
+      events.push({ key: object.key, size: object.size, uploaded: object.uploaded?.toISOString?.() ?? String(object.uploaded ?? '') });
+    }
+  }
+  return { configured: true, events };
+}
+
+async function readEmailEvent(env: any, eventKeyOrId: string, includeRaw: boolean) {
+  const bucket = env?.DATA_R2;
+  if (!bucket?.get) return { configured: false, error: 'DATA_R2 R2 binding is not configured.' };
+  const key = eventKeyOrId.startsWith('email-events/') ? eventKeyOrId : `email-events/${eventKeyOrId.replace(/\.json$/, '')}.json`;
+  const object = await bucket.get(key);
+  if (!object) return { configured: true, found: false, key };
+  const metadata = JSON.parse(await object.text());
+  let raw_preview: string | undefined;
+  if (includeRaw && metadata.raw_key) {
+    const raw = await bucket.get(metadata.raw_key);
+    if (raw) raw_preview = (await raw.text()).slice(0, 4000);
+  }
+  return { configured: true, found: true, key, metadata, raw_preview };
+}
+
 export function makeEmailTools(env?: any) {
   const processEmailPayload = defineTool({
     name: 'process_email_payload',
     description:
-      'Process a test-mode email payload, extract CSV links/attachments, profile CSV links, and produce data-cleaner handoff prompts plus suggested export paths. This documents Cloudflare Email binding behavior but does not require live routing.',
+      'Process a test-mode email payload, extract CSV links/attachments, profile CSV links, and produce data-cleaner handoff prompts plus suggested export paths. For live routed email, use list_stored_emails/read_stored_email after Cloudflare Email Routing delivers messages to the Worker email() handler.',
     input: v.object({
       from: v.string(),
       subject: v.string(),
@@ -61,9 +93,24 @@ export function makeEmailTools(env?: any) {
         })),
         cleaning_jobs: cleaningJobs,
         setup_note:
-          'Production Email Workers require an email() handler/binding in Cloudflare Email Routing. This Flue demo accepts test JSON payloads through the agent route and produces data-cleaner handoff prompts/export paths.',
+          'This Worker includes a live email() handler that stores routed raw MIME and metadata in DATA_R2. Configure Cloudflare Email Routing for a verified domain/address to deliver live mail to this Worker. Test JSON payloads through the agent route remain supported.',
       } as unknown as JsonValue;
     },
   });
-  return [processEmailPayload];
+
+  const listStoredEmails = defineTool({
+    name: 'list_stored_emails',
+    description: 'List recent live email events stored in DATA_R2 by the Worker email() handler.',
+    input: v.object({ limit: v.optional(v.number()) }),
+    run: async ({ input }) => (await listEmailEvents(env, Math.max(1, Math.min(50, input.limit ?? 10)))) as unknown as JsonValue,
+  });
+
+  const readStoredEmail = defineTool({
+    name: 'read_stored_email',
+    description: 'Read one live email event metadata record from DATA_R2, optionally including a raw MIME preview.',
+    input: v.object({ key_or_id: v.string(), include_raw_preview: v.optional(v.boolean()) }),
+    run: async ({ input }) => (await readEmailEvent(env, input.key_or_id, input.include_raw_preview ?? false)) as unknown as JsonValue,
+  });
+
+  return [processEmailPayload, listStoredEmails, readStoredEmail];
 }
